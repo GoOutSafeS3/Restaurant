@@ -211,6 +211,13 @@ paths:
         required: true
         schema:
           type: integer
+      - name: capacity
+        in: query
+        description: Capacity required
+        required: false
+        schema:
+          type: integer
+          minimum: 1
       responses:
         200:
           description: Return restaurant tables
@@ -220,6 +227,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Table'
+        204:
+          description: No adequate table
         404:
           description: Restaurant not found
     post:

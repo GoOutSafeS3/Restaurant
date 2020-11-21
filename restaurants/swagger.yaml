@@ -154,7 +154,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         409:
-          description: The restaurant has pending reservations tha conflict with the new openings, those must be deleted first, try using the force parameter
+          description: The restaurant has pending reservations tha conflict with the new openings, those must be deleted first
           content:
             application/json:
               schema:
@@ -177,12 +177,6 @@ paths:
         required: true
         schema:
           type: integer
-      - name: force
-        in: query
-        description: Try to delete future reservations, disabled for now
-        required: false
-        schema:
-          type: boolean
       responses:
         204:
           description: Restaurant deleted
@@ -193,7 +187,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         409:
-          description: The restaurant has pending reservations, those must be deleted first, try using the force parameter
+          description: The restaurant has pending reservations, those must be deleted first
           content:
             application/json:
               schema:
@@ -422,7 +416,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         409:
-          description: The table has pending reservations tha conflict with the new capacity, those must be deleted first, try using the force parameter
+          description: The table has pending reservations tha conflict with the new capacity, those must be deleted first
           content:
             application/json:
               schema:
@@ -451,12 +445,6 @@ paths:
         required: true
         schema:
           type: integer
-      - name: force
-        in: query
-        description: try to delete future reservations, disabled for now
-        required: false
-        schema:
-          type: boolean
       responses:
         204:
           description: Table deleted
@@ -467,7 +455,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         409:
-          description: The table has pending reservations, those must be deleted first, try using the force parameter
+          description: The table has pending reservations, those must be deleted first
           content:
             application/json:
               schema:

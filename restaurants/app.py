@@ -163,7 +163,7 @@ def put_restaurant(restaurant_id):
         Status Codes:
             200 - OK
             404 - Restaurant not found
-            409 - The restaurant has pending reservations tha conflict with the new times, those must be deleted first, try using the force parameter
+            409 - The restaurant has pending reservations tha conflict with the new times, those must be deleted first
             500 - DB error
     """
     req = request.json
@@ -178,7 +178,7 @@ def put_restaurant(restaurant_id):
             if not (req["first_opening_hour"] <= hour <= req["first_closing_hour"]
                     or 
                     req["second_opening_hour"] <= hour <= req["second_closing_hour"]):
-                return Error409("The restaurant has pending reservations tha conflict with the new times, those must be deleted first, try using the force parameter").get()
+                return Error409("The restaurant has pending reservations tha conflict with the new times, those must be deleted first").get()
     else:
         return Error500().get()
 
@@ -202,7 +202,7 @@ def delete_restaurant(restaurant_id):
     Status Codes:
         204 - Deleted
         404 - Restaurant not found
-        409 - The restaurant has pending reservations, those must be deleted first, try using the force parameter
+        409 - The restaurant has pending reservations, those must be deleted first
         500 - Error with the database or the other bookings service
     """
     p = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
@@ -214,7 +214,7 @@ def delete_restaurant(restaurant_id):
         return Error500().get() # Cannot connect to the bookings service
 
     if len(array) != 0:
-        return Error409("The restaurant has pending reservations, those must be deleted first, try using the force parameter").get()
+        return Error409("The restaurant has pending reservations, those must be deleted first").get()
 
     if not del_restaurant(restaurant_id):
         return Error500().get() # DB error
@@ -347,7 +347,7 @@ def put_restaurant_table(restaurant_id, table_id):
         Status Codes:
             200 - OK
             404 - Restaurant not found
-            409 - The table has pending reservations tha conflict with the new capacity, those must be deleted first, try using the force parameter
+            409 - The table has pending reservations tha conflict with the new capacity, those must be deleted first
             500 - DB error
     """
     req = request.json
@@ -360,7 +360,7 @@ def put_restaurant_table(restaurant_id, table_id):
     if code == 200:
         for booking in array:
             if booking["number_of_people"] > req["capacity"]:
-                return Error409("The table has pending reservations tha conflict with the new capacity, those must be deleted first, try using the force parameter").get()
+                return Error409("The table has pending reservations tha conflict with the new capacity, those must be deleted first").get()
     else:
         return Error500().get()
 
@@ -386,7 +386,7 @@ def delete_restaurant_table(restaurant_id, table_id):
     Status Codes:
         204 - Deleted
         404 - Restaurant not found
-        409 - The table has pending reservations, those must be deleted first, try using the force parameter
+        409 - The table has pending reservations, those must be deleted first
         500 - Error with the database or the other bookings service
     """
     q = db.session.query(Table).filter(Table.id == table_id and Table.restaurant_id == restaurant_id).first()
@@ -398,7 +398,7 @@ def delete_restaurant_table(restaurant_id, table_id):
         return Error500().get() # Cannot connect to the bookings service
 
     if len(array) != 0:
-        return Error409("The table has pending reservations, those must be deleted first, try using the force parameter").get()
+        return Error409("The table has pending reservations, those must be deleted first").get()
 
     if not del_table(table_id):
         return Error500().get() # DB error

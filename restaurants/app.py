@@ -37,7 +37,7 @@ DEFAULT_CONFIGURATION = {
     "PORT": 8080, # the app port
     "DEBUG":True, # set debug mode
 
-    "SQLALCHEMY_DATABASE_URI": "restaurants.db", # the database path/name
+    "SQLALCHEMY_DATABASE_URI": "db/restaurants.db", # the database path/name
     "SQLALCHEMY_TRACK_MODIFICATIONS": False,
 
     "USE_MOCKS": False, # use mocks for external calls

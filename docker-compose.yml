@@ -7,7 +7,7 @@ services:
     volumes:
       - type: volume
         source: db-production
-        target: /code/monolith/db
+        target: /usr/src/app/restaurants/db
     depends_on:
       - redis
       - worker
@@ -30,7 +30,7 @@ services:
     volumes:
       - type: volume
         source: db-production
-        target: /code/monolith/db
+        target: /usr/src/app/restaurants/db
   redis:
     image: "redis:alpine"
     expose:

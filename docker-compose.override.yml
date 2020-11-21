@@ -8,7 +8,7 @@ services:
       - local
     volumes:
       - .:/coverage
-      - ./restaurants/db:/code/restaurants/db
+      - ./restaurants/db:/usr/src/app/restaurants/db
     command: /code/test.sh
     environment:
       - "BROKER=redis://local-redis:6379"
@@ -21,7 +21,7 @@ services:
     volumes:
       - type: volume
         source: db-testing
-        target: /code/restaurants/db
+        target: /usr/src/app/restaurants/db
     depends_on:
       - redis
       - worker
@@ -44,7 +44,7 @@ services:
     volumes:
       - type: volume
         source: db-testing
-        target: /code/restaurants/db
+        target: /usr/src/app/restaurants/db
   redis:
     image: "redis:alpine"
     expose:
@@ -58,7 +58,7 @@ services:
       - "CONFIG=TEST"
     command: celery -A restaurants.worker:celery worker -l info -B -s /tmp/celerybeat-schedule 
     volumes:
-      - ./restaurants/db:/code/restaurants/db
+      - ./restaurants/db:/usr/src/app/restaurants/db
     depends_on:
       - local-redis
   local-redis:

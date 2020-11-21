@@ -5,7 +5,7 @@ case "$1" in
         pytest --cov=restaurants --cov-report term-missing --cov-report html --html=report.html
         ;;
     "unittests")
-        pytest --cov=restaurants
+        pytest --cov=restaurants -s
         ;;
     "setup")
         pip3 install -r requirements.txt

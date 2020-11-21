@@ -66,27 +66,34 @@ def get_restaurants(name=None, opening_time=None, open_day=None, cuisine_type=No
     """
 
     q = db.session.query(Restaurant)
-    
     if name is not None:
-        q = q.filter_by(Restaurant.name.contains(name))
+        q = q.filter(Restaurant.name.contains(name))
     if opening_time is not None:
         if opening_time >= 0 and opening_time <= 23:
-            q = q.filter_by(
-                (Restaurant.first_opening_hour.isnot(None) and Restaurant.first_closing_hour.isnot(None) and Restaurant.first_opening_hour <= opening_time <= Restaurant.first_closing_hour)
-                or
-                (Restaurant.second_opening_hour.isnot(None) and Restaurant.second_closing_hour.isnot(None) and Restaurant.second_opening_hour <= opening_time <= Restaurant.second_closing_hour)
+            q = q.filter(
+                    (Restaurant.first_opening_hour.isnot(None) & Restaurant.first_closing_hour.isnot(None) & 
+                        (Restaurant.first_opening_hour <= opening_time)
+                        &
+                        (opening_time <= Restaurant.first_closing_hour)
+                    )
+                    |
+                    (Restaurant.second_opening_hour.isnot(None) & Restaurant.second_closing_hour.isnot(None) & 
+                        (Restaurant.second_opening_hour <= opening_time)
+                        &
+                        (opening_time <= Restaurant.second_closing_hour)
+                    )
                 )
         else:
             return Error400("Argument: opening_time is not a valid hour").get()
     if open_day is not None:
-        if open_day >= 1 and opening_time <= 7:
-            q = q.filter_by(restaurant_id=rest)
+        if open_day >= 1 and open_day <= 7:
+            q = q.filter(~Restaurant.closed_days.contains(str(open_day)))
         else:
             return Error400("Argument: open_day is not a valid day").get()
     if cuisine_type is not None:
-        q = q.filter_by(Restaurant.columnName.contains(name))
+        q = q.filter(Restaurant.cuisine_type.contains(cuisine_type))
     if menu is not None:
-        q = q.filter_by(Restaurant.columnName.contains(name))
+        q = q.filter(Restaurant.menu.contains(menu))
 
     return [p.dump() for p in q], 200
 

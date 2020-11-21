@@ -62,8 +62,8 @@ restaurants = [
         "phone": "050123456",
         "first_opening_hour": 0,
         "first_closing_hour": 23,
-        "second_opening_hour": 0,
-        "second_closing_hour": 0,
+        "second_opening_hour": None,
+        "second_closing_hour": None,
         "occupation_time": 2,
         "cuisine_type": "cuisine_type",
         "menu": "menu",
@@ -146,20 +146,57 @@ def get_tables(id):
         else:
             return get_from(current_app.config["REST_SERVICE_URL"]+"/restaurants/"+str(id)+"/tables")
 
-def validate_hours(opening_lunch, closing_lunch, opening_dinner, closing_dinner):
+def same_restaurants(rests,rests2):
+    if len(rests) != len(rests2):
+        return "Different lenght"
+    for rest,rest2 in zip(rests, rests2):
+        for k in rest.keys():
+            if k == "closed_days":
+                if rest[k] != ''.join([str(i) for i in rest2[k]]):
+                    return str(rest[k])+"\n"+k+"\n"+str(rest2[k])
+            else:
+                if rest[k] != rest2[k]:
+                    return str(rest[k])+"\n"+k+"\n"+str(rest2[k])
+    return None
+
+def search_mock_restaurants(restaurants,keys,vals):
+    res = []
+    for r in restaurants:
+        candidate = True
+        for k,v in zip(keys,vals):
+            if v is not None:
+                if k == "opening_time":
+                    v1 = False
+                    v2 = False
+                    if r["first_opening_hour"] is not None and r["first_closing_hour"] is not None:
+                        v1 = r["first_opening_hour"] <= int(v) <= r["first_closing_hour"]
+                    if r["second_opening_hour"] is not None and r["second_closing_hour"] is not None:
+                        v2 = r["second_opening_hour"] <= int(v) <= r["second_closing_hour"]
+                    if not(v1 or v2):
+                        candidate = False
+                elif k == "open_day":
+                    if v in ''.join([str(i) for i in r["closed_days"]]):
+                        candidate = False
+                elif v not in r[k]:
+                    candidate = False
+        if candidate:
+            res.append(r)
+    return res
+
+def validate_hours(first_opening, first_closing, second_opening, second_closing):
     """
-    :type opening_lunch: Integer
-    :type opening_dinner: Integer
-    :type closing_dinner: Integer
-    :type closing_lunch: Integer
+    :type first_opening: Integer
+    :type second_opening: Integer
+    :type second_closing: Integer
+    :type first_closing: Integer
     """
-    if opening_lunch > closing_lunch or opening_lunch > opening_dinner or opening_lunch > closing_dinner:
+    if first_opening > first_closing or first_opening > second_opening or first_opening > second_closing:
         return False
-    if closing_lunch > opening_dinner or closing_lunch > closing_dinner:
+    if first_closing > second_opening or first_closing > second_closing:
         return False
-    if opening_dinner > closing_dinner:
+    if second_opening > second_closing:
         return False
-    if closing_dinner > 24 and closing_dinner-24 > opening_lunch: # restaurant may be open after midnight, check that the opening the day after does not conflict with the closing
+    if second_closing > 24 and second_closing-24 > first_opening: # restaurant may be open after midnight, check that the opening the day after does not conflict with the closing
         return False
     return True
 
@@ -184,19 +221,19 @@ def valid_openings(first_opening_hour, first_closing_hour, second_opening_hour, 
 def edit_restaurant(restaurant_id, obj):
     try:
         restaurant = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
-        restaurant.id = obj.rest_id
-        restaurant.name = obj.name
-        restaurant.lat = obj.lat
-        restaurant.lon = obj.lon
-        restaurant.phone = obj.phone
-        restaurant.first_opening_hour = obj.first_opening_hour
-        restaurant.first_closing_hour = obj.first_closing_hour
-        restaurant.second_opening_hour = obj.second_opening_hour
-        restaurant.second_closing_hour = obj.second_closing_hour
-        restaurant.occupation_time = obj.occupation_time
-        restaurant.cuisine_type = obj.cuisine_type
-        restaurant.menu = obj.menu
-        restaurant.closed_days = ''.join(obj.closed_days)
+        restaurant.id = obj["rest_id"]
+        restaurant.name = obj["name"]
+        restaurant.lat = obj["lat"]
+        restaurant.lon = obj["lon"]
+        restaurant.phone = obj["phone"]
+        restaurant.first_opening_hour = obj["first_opening_hour"]
+        restaurant.first_closing_hour = obj["first_closing_hour"]
+        restaurant.second_opening_hour = obj["second_opening_hour"]
+        restaurant.second_closing_hour = obj["second_closing_hour"]
+        restaurant.occupation_time = obj["occupation_time"]
+        restaurant.cuisine_type = obj["cuisine_type"]
+        restaurant.menu = obj["menu"]
+        restaurant.closed_days = ''.join([str(i) for i in obj["closed_days"]])
         db.session.add(restaurant)
         db.session.commit()
         return restaurant.id
@@ -207,23 +244,28 @@ def edit_restaurant(restaurant_id, obj):
 def add_restaurant(obj):
     try:
         restaurant = Restaurant()
-        restaurant.id = obj.rest_id
-        restaurant.name = obj.name
-        restaurant.lat = obj.lat
-        restaurant.lon = obj.lon
-        restaurant.phone = obj.phone
-        restaurant.first_opening_hour = obj.first_opening_hour
-        restaurant.first_closing_hour = obj.first_closing_hour
-        restaurant.second_opening_hour = obj.second_opening_hour
-        restaurant.second_closing_hour = obj.second_closing_hour
-        restaurant.occupation_time = obj.occupation_time
-        restaurant.cuisine_type = obj.cuisine_type
-        restaurant.menu = obj.menu
-        restaurant.closed_days = ''.join(obj.closed_days)
+        restaurant.name = obj["name"]
+        restaurant.lat = obj["lat"]
+        restaurant.lon = obj["lon"]
+        restaurant.phone = obj["phone"]
+        restaurant.first_opening_hour = obj["first_opening_hour"]
+        restaurant.first_closing_hour = obj["first_closing_hour"]
+        restaurant.second_opening_hour = obj["second_opening_hour"]
+        restaurant.second_closing_hour = obj["second_closing_hour"]
+        restaurant.occupation_time = obj["occupation_time"]
+        restaurant.cuisine_type = obj["cuisine_type"]
+        restaurant.menu = obj["menu"]
+        restaurant.closed_days = ''.join([str(i) for i in obj["closed_days"]])
+        if "rating_val" in obj:
+            restaurant.rating_val = obj["rating_val"]
+        if "rating_num" in obj:
+            restaurant.rating_num = obj["rating_num"]
         db.session.add(restaurant)
         db.session.commit()
         return restaurant.id
     except:
+        import traceback
+        traceback.print_exc()
         db.session.rollback()
         return None
 
@@ -299,6 +341,25 @@ def put_fake_data():
                 - REST: 3
                 - BOOKINGS: []
     """
+
+    
+    for restaurant in restaurants:
+        add_restaurant(restaurant)
+
+    obj = {
+        "name": "",
+        "lat": "",
+        "lon": "",
+        "phone": "",
+        "first_opening_hour": "",
+        "first_closing_hour": "",
+        "second_opening_hour": "",
+        "second_closing_hour": "",
+        "occupation_time": "",
+        "cuisine_type": "",
+        "menu": "",
+        "closed_days": ""
+    }
 
     # add_booking(user_id, rest_id, number_of_people, booking_datetime, table_id)
     

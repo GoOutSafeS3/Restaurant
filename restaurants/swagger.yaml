@@ -488,23 +488,31 @@ components:
         first_opening_hour:
           type: integer
           description: First opening hour (first submitable booking time)
+          nullable: true
           minimum: 0
           maximum: 23
+          example: 12
         first_closing_hour:
           type: integer
           description: First closing hour (last submitable booking time)
+          nullable: true
           minimum: 0
           maximum: 23
+          example: 15
         second_opening_hour:
           type: integer
           description: Second opening hour (if available)
+          nullable: true
           minimum: 0
           maximum: 23
+          example: Null
         second_closing_hour:
           type: integer
           description: Second closing hour (if available)
+          nullable: true
           minimum: 0
           maximum: 23
+          example: Null
         occupation_time:
           type: integer
           description: Time for a table to be clear again

@@ -2,6 +2,7 @@ import datetime
 import logging
 import random
 import os
+import traceback
 import requests
 
 from flask import current_app
@@ -19,13 +20,13 @@ restaurants = [
         "url": "/restaurants/1", # NO OPENING TIMES
         "id": 1,
         "name": "Rest 1",
-        "rating_val": 3.4,
-        "rating_num": 123,
+        "rating_val": 0,
+        "rating_num": 0,
         "lat": 42.42,
         "lon": 42.42,
         "phone": "050123456",
-        "first_opening_hour": 0,
-        "first_closing_hour": 0,
+        "first_opening_hour": None,
+        "first_closing_hour": None,
         "second_opening_hour": None,
         "second_closing_hour": None,
         "occupation_time": 0,
@@ -37,8 +38,8 @@ restaurants = [
         "url": "/restaurants/2", # ONLY AT LUNCH (CLOSED ON MONDAYS)
         "id": 2,
         "name": "Rest 2",
-        "rating_val": 3.4,
-        "rating_num": 123,
+        "rating_val": 3,
+        "rating_num": 1,
         "lat": 42.42,
         "lon": 42.42,
         "phone": "050123456",
@@ -103,12 +104,12 @@ bookings = [
     They are identified starting from 1.
 """
 tables = [
-    {"id":1, "restaurant_id": 1, "capacity":4},
-    {"id":2, "restaurant_id": 2, "capacity":3},
-    {"id":3, "restaurant_id": 4, "capacity":2},
-    {"id":4, "restaurant_id": 3, "capacity":5},
-    {"id":5, "restaurant_id": 3, "capacity":4},
-    {"id":6, "restaurant_id": 3, "capacity":2},
+    {"url": "/restaurants/1/tables/1", "id":1, "restaurant_id": 1, "capacity":4},
+    {"url": "/restaurants/2/tables/2", "id":2, "restaurant_id": 2, "capacity":3},
+    {"url": "/restaurants/4/tables/3", "id":3, "restaurant_id": 4, "capacity":2},
+    {"url": "/restaurants/3/tables/4", "id":4, "restaurant_id": 3, "capacity":5},
+    {"url": "/restaurants/3/tables/5", "id":5, "restaurant_id": 3, "capacity":4},
+    {"url": "/restaurants/3/tables/6", "id":6, "restaurant_id": 3, "capacity":2},
 ]
 
 def put_to(url, data):
@@ -211,6 +212,13 @@ def search_mock_restaurants(restaurants,keys,vals):
             res.append(r)
     return res
 
+def get_mock_tables(tables, restaurant_id):
+    ret = []
+    for t in tables:
+        if t["restaurant_id"] == restaurant_id:
+            ret.append(t)
+    return ret
+
 def validate_hours(first_opening, first_closing, second_opening, second_closing):
     """
     :type first_opening: Integer
@@ -244,6 +252,18 @@ def valid_openings(first_opening_hour, first_closing_hour, second_opening_hour, 
                 return Error400("You must specify both second opening hours or none").get()
             if first_opening_hour > first_closing_hour:
                 return Error400("Closing time cannot be before opening time (first)").get()
+    return None
+
+def valid_rating(obj, rest_id):
+    #check restaurant existing
+    restaurant = db.session.query(Restaurant).filter_by(id = rest_id).first()
+    if restaurant is None:
+        return Error404("Restaurant not found").get()
+    #check already voted
+    q = db.session.query(Rating).filter_by(restaurant_id = rest_id)
+    rating = q.filter_by(rater_id = obj["rater_id"]).first()
+    if rating is not None:
+        return Error400("Restaurant already rated by the user").get()
     return None
 
 def del_restaurant(restaurant_id):
@@ -307,14 +327,31 @@ def add_restaurant(obj):
         db.session.rollback()
         return None
 
-def add_table(obj):
+def add_table(obj, restaurant_id):
     try:
         table = Table()
         table.capacity = obj["capacity"]
-        table.rest_id = obj["restaurant_id"]
+        table.restaurant_id = restaurant_id
+        db.session.add(table)
         db.session.commit()
+        return table.id
     except:
         db.session.rollback()
+    return None
+
+def add_rating(obj, restaurant_id):
+    try:
+        rating = Rating()
+        rating.restaurant_id = restaurant_id
+        rating.rater_id = obj["rater_id"]
+        rating.rating = obj["rating"]
+        db.session.add(rating)
+        db.session.commit()
+        return 200
+    except:
+        traceback.print_exc()
+        db.session.rollback()
+    return None
 
 def put_fake_data():
     """
@@ -393,4 +430,4 @@ def put_fake_data():
         add_restaurant(restaurant)
 
     for table in tables:
-        add_table(table)
+        add_table(table, table["restaurant_id"])

@@ -1,4 +1,5 @@
 from datetime import date
+from restaurants.background import check_ratings
 import unittest 
 import datetime
 import dateutil
@@ -6,7 +7,7 @@ import dateutil
 from requests.models import Response
 
 from restaurants.app import create_app 
-from restaurants.utils import restaurants, search_mock_restaurants, same_restaurants, same_restaurant
+from restaurants.utils import get_mock_tables, tables, restaurants, search_mock_restaurants, same_restaurants, same_restaurant
 
 
 restaurant_post_keys= [
@@ -24,6 +25,10 @@ restaurant_post_keys= [
     "closed_days",
 ]
 
+table_post_keys= [
+    "capacity",
+]
+
 def clone_for_post(obj,keys):
     dup = {}
     for k,v in obj.items():
@@ -33,7 +38,7 @@ def clone_for_post(obj,keys):
 
 restaurants_toaddedit = [
     {
-        "url": "/restaurants/5", # NO OPENING TIMES
+        "url": "/restaurants/5",
         "id": 5,
         "name": "Rest 5",
         "rating_val": 0,
@@ -54,8 +59,8 @@ restaurants_toaddedit = [
         "url": "/restaurants/2", # ONLY AT LUNCH (CLOSED ON MONDAYS)
         "id": 2,
         "name": "Rest 2-new",
-        "rating_val": 3.4,
-        "rating_num": 123,
+        "rating_val": 3,
+        "rating_num": 1,
         "lat": 42.41,
         "lon": 42.41,
         "phone": "050123456",
@@ -67,6 +72,24 @@ restaurants_toaddedit = [
         "cuisine_type": "cuisine_type new",
         "menu": "menu-new",
         "closed_days": [1]
+    },
+    {
+        "url": "/restaurants/6",
+        "id": 6,
+        "name": "Rest 6",
+        "rating_val": 0,
+        "rating_num": 0,
+        "lat": 42.41,
+        "lon": 42.41,
+        "phone": "050123456",
+        "first_opening_hour": 2,
+        "first_closing_hour": 5,
+        "second_opening_hour": None,
+        "second_closing_hour": None,
+        "occupation_time": 1,
+        "cuisine_type": "cuisine_type",
+        "menu": "menu",
+        "closed_days": [1,2,3,4,5,6,7]
     }
 ]
 
@@ -127,7 +150,30 @@ opening_possibilities = [
     }
 ]
 
-class BookingsTests(unittest.TestCase): 
+table_possibilities = [
+    {
+        "capacity": -1
+    },
+    {
+        "capacity": 0
+    },
+    {
+        "capacity": -10
+    },
+]
+
+ratings_toadd = [
+    {"rater_id": 1, "rating": 3},
+    {"rater_id": 2, "rating": 6}, # invalid
+]
+
+tables_toaddedit = [
+    {"url": "/restaurants/5/tables/7", "id":7, "restaurant_id": 5, "capacity":2},
+    {"url": "/restaurants/5/tables/7", "id":7, "restaurant_id": 5, "capacity":5},
+    {"url": "/restaurants/1/tables/8", "id":8, "restaurant_id": 5, "capacity":5},
+]
+
+class RestaurantsTests(unittest.TestCase): 
     """ Tests endpoints with mocks """
 
     ############################ 
@@ -264,19 +310,15 @@ class BookingsTests(unittest.TestCase):
 
     def test_delete_restaurant(self):
         client = self.app.test_client()
+        # assuming test_post_restaurants executed before
+        self.test_post_restaurants()
+        r = restaurants_toaddedit[0]
 
-        dup = clone_for_post(restaurants_toaddedit[0], restaurant_post_keys)
-        response = client.post('/restaurants',json=dup)
-        json = response.get_json()
-        ret = same_restaurant(json, restaurants_toaddedit[0])
-        self.assertIsNone(ret, msg=str(json)+"\n\n"+str(restaurants_toaddedit[0]))
-        self.assertEqual(response.status_code, 201, msg=json)
-
-        response = client.delete(restaurants_toaddedit[0]["url"])
+        response = client.delete(r["url"])
         json = response.get_data()
         self.assertEqual(response.status_code, 204, msg=json)
 
-        response = client.get(restaurants_toaddedit[0]["url"])
+        response = client.get(r["url"])
         json = response.get_json()
         self.assertEqual(response.status_code, 404, msg=json)
 
@@ -288,37 +330,191 @@ class BookingsTests(unittest.TestCase):
         json = response.get_json()
         self.assertEqual(response.status_code, 200, msg=json)
 
+        #check incremental id
+        r = restaurants_toaddedit[2]
+        dup = clone_for_post(r, restaurant_post_keys)
+        response = client.post('/restaurants',json=dup)
+        json = response.get_json()
+        ret = same_restaurant(json, r)
+        self.assertIsNone(ret, msg=str(json)+"\n\n"+str(r))
+        self.assertEqual(response.status_code, 201, msg=json)
+
     def test_get_restaurant_rate(self):
         client = self.app.test_client()
         for r in restaurants:
             response = client.get("/restaurants/%d/rate" % r["id"])
             json = response.get_json()
             self.assertEqual(response.status_code, 200, msg=json)
-            self.assertEqual(json["value"], r["rating_val"], msg =json)
+            self.assertEqual(json["rating"], r["rating_val"], msg =json)
             self.assertEqual(json["ratings"], r["rating_num"], msg =json)
 
     def test_post_restaurant_rate(self):
         client = self.app.test_client()
+        r = restaurants[0]
+        response = client.post("%s/rate" % r["url"], json=ratings_toadd[0])
+        self.assertEqual(response.status_code, 202, msg=response.get_data())
+
+        check_ratings.apply()
+
+        response = client.get("%s/rate" % r["url"])
+        json = response.get_json()
+        self.assertEqual(response.status_code, 200, msg=json)
+        self.assertEqual(json["rating"], ratings_toadd[0]["rating"], msg =json)
+        self.assertEqual(json["ratings"], 1, msg =json)
+
+    def test_post_restaurant_rate_failures(self):
+        client = self.app.test_client()
+        r = restaurants[1]
+
+        response = client.post("%s/rate" % r["url"], json=ratings_toadd[1])
+        self.assertEqual(response.status_code, 400, msg=response.get_data())
+
+        response = client.get("%s/rate" % r["url"])
+        json = response.get_json()
+        self.assertEqual(response.status_code, 200, msg=json)
+        self.assertEqual(json["rating"], r["rating_val"], msg =json)
+        self.assertEqual(json["ratings"], r["rating_num"], msg =json)
+
 
     def test_get_tables(self):
         client = self.app.test_client()
 
+        for r in restaurants:
+            response = client.get(r["url"]+"/tables")
+            ret = get_mock_tables(tables, r["id"])
+            if len(ret) == 0:
+                self.assertEqual(response.status_code, 204, msg=response.get_data())
+            else:
+                json = response.get_json()
+                self.assertEqual(response.status_code, 200, msg=json)
+                self.assertEqual(ret, json)
+
+    def test_post_tables(self):
+        client = self.app.test_client()
+        # assuming test_post_restaurant executed before
+        self.test_post_restaurants()
+
+        r = restaurants_toaddedit[0]
+        t = tables_toaddedit[0]
+        dup = clone_for_post(t,table_post_keys)
+
+        response = client.post(r["url"]+"/tables")
+        json = response.get_json()
+        self.assertEqual(response.status_code, 201, msg=json)
+        self.assertEqual(t, json)
+
+    def test_post_tables_failures(self):
+        client = self.app.test_client()
+
+        dup_=clone_for_post(tables_toaddedit[0], table_post_keys)
+
+        for k,v in dup_.items():
+            dup = dup_.copy()
+            if v == None:
+                continue
+            dup[k] = None
+            dup = clone_for_post(dup, table_post_keys)
+            response = client.post("/restaurants/%d/tables" % tables_toaddedit[0]["restaurant_id"],json=dup)
+            json = response.get_json()
+            self.assertEqual(response.status_code, 400, msg=json)
+
+        for pos in table_possibilities:
+            dup_ = clone_for_post(tables_toaddedit[0], table_post_keys)
+            for k,v in pos.items():
+                dup_[k] = v
+            dup = clone_for_post(dup_, table_post_keys)
+            response = client.post("/restaurants/%d/tables" % dup_["restaurant_id"],json=dup)
+            json = response.get_json()
+            self.assertEqual(response.status_code, 400, msg=json)
+
     def test_get_table(self):
         client = self.app.test_client()
 
+        for t in tables:
+            response = client.get(t["url"])
+            self.assertEqual(response.status_code, 200, msg=response.get_data())
+            json = response.get_json()
+            self.assertEqual(json,t)
+
     def test_put_table(self):
+        # assuming test_post_table executed before
+        self.test_post_tables()
+
         client = self.app.test_client()
+        t = tables_toaddedit[1]
+        dup = clone_for_post(t,table_post_keys)
+        response = client.put(t["url"],json=dup)
+        self.assertEqual(response.status_code, 200, msg=response.get_data())
+        json = response.get_json()
+        self.assertEqual(json,t)
+
+    def test_put_table_failures(self):
+        client = self.app.test_client()
+        # assuming test_post_restaurant executed before
+        self.test_post_restaurants()
+
+        dup_=clone_for_post(tables[0], table_post_keys)
+
+        for k,v in dup_.items():
+            dup = dup_.copy()
+            if v == None:
+                continue
+            dup[k] = None
+            dup = clone_for_post(dup, table_post_keys)
+            response = client.put(tables[0]["url"],json=dup)
+            json = response.get_json()
+            self.assertEqual(response.status_code, 400, msg=json)
+
+        for pos in table_possibilities:
+            dup_ = clone_for_post(tables[0], table_post_keys)
+            for k,v in pos.items():
+                dup_[k] = v
+            dup = clone_for_post(dup_, table_post_keys)
+            response = client.put(dup_["url"],json=dup)
+            json = response.get_json()
+            self.assertEqual(response.status_code, 400, msg=json)
+
 
     def test_delete_table(self):
         client = self.app.test_client()
+        # assuming test_post_tables executed before
+        self.test_post_tables()
+        t = tables_toaddedit[0]
+
+        response = client.delete(t["url"])
+        json = response.get_data()
+        self.assertEqual(response.status_code, 204, msg=json)
+
+        response = client.get(t["url"])
+        json = response.get_json()
+        self.assertEqual(response.status_code, 404, msg=json)
+
+        response = client.delete(tables[2]["url"])
+        json = response.get_data()
+        self.assertEqual(response.status_code, 409, msg=json)
+
+        response = client.get(restaurants[2]["url"])
+        json = response.get_json()
+        self.assertEqual(response.status_code, 200, msg=json)
+
+        # check incremental id
+        t = tables_toaddedit[2]
+        dup = clone_for_post(t, table_post_keys)
+        response = client.post('/restaurants/%d/tables'%t["restaurant_id"],json=dup)
+        json = response.get_json()
+        ret = same_restaurant(json, t)
+        self.assertIsNone(ret, msg=str(json)+"\n\n"+str(t))
+        self.assertEqual(response.status_code, 201, msg=json)
+        
 
     def test_404(self): 
         client = self.app.test_client() 
         endpoints = { 
-             "/restaurants/%d":(1,["get","put","delete"]) ,
-             "/restaurants/%d/tables/%d": (2,["get","put","delete"])
+             "/restaurants/%d":(1,["get","put","delete"],clone_for_post(restaurants[0],restaurant_post_keys)),
+             "/restaurants/%d/tables/%d": (2,["get","put","delete"],clone_for_post(tables[0],table_post_keys)),
+             "/restaurants/%d/tables": (1,["post"],clone_for_post(tables_toaddedit[0],table_post_keys))
          } 
-        for k,(n,v) in endpoints.items(): 
+        for k,(n,v,json) in endpoints.items(): 
             if n == 1:
                 ids = 9999
             elif n==2:
@@ -328,8 +524,10 @@ class BookingsTests(unittest.TestCase):
                 response = None 
                 if m == "get": 
                     response = client.get(query) 
+                elif m == "post":
+                    response = client.post(query,json=json)
                 elif m == "put": 
-                    response = client.put(query,json={}) 
+                    response = client.put(query,json=json) 
                 elif m == "delete": 
                     response = client.delete(query) 
                 self.assertIn(response.status_code, [400,404], msg="ENDPOINT: "+k+"\nMETHOD: "+m+"\n"+response.get_data(as_text=True)) 

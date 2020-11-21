@@ -7,7 +7,8 @@ db = SQLAlchemy()
 class Restaurant(db.Model):
 
     __tablename__ = 'restaurant'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    __table_args__ = {'sqlite_autoincrement':True}
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, unique=True)
     name = db.Column(db.Text(100))
     rating_val = db.Column(db.Float, default=0) # will store the mean value of the rating
     rating_num = db.Column(db.Integer, default=0) # will store the number of ratings
@@ -62,10 +63,16 @@ class Restaurant(db.Model):
         d["url"] = "/restaurants/"+str(d["id"])
         return d
 
+    def dump_rating(self):
+        """ Return a db record as a dict but with only rating and ratings"""
+        d = {"rating": self.rating_val, "ratings": self.rating_num}
+        return d
+
 class Table(db.Model):
     __tablename__ = 'table'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    rest_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'))
+    __table_args__ = {'sqlite_autoincrement':True}
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, unique=True)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'))
     capacity = db.Column(db.Integer)
     restaurant = relationship('Restaurant')
 
@@ -77,7 +84,8 @@ class Table(db.Model):
 
 class Rating(db.Model):
     __tablename__ = 'Rating'
-    rater_id = db.Column(db.Integer, primary_key=True)
+    __table_args__ = {'sqlite_autoincrement':True}
+    rater_id = db.Column(db.Integer, primary_key=True, unique=True)
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'), primary_key=True)
     restaurant = relationship('Restaurant', foreign_keys='Rating.restaurant_id')
     rating = db.Column(db.Integer)

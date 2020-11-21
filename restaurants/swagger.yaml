@@ -534,15 +534,15 @@ components:
           maxItems: 7
     Rating:
       required:
-      - user_id
-      - value
+      - rater_id
+      - rating
       type: object
       properties:
-        user_id:
+        rater_id:
           type: integer
           description: User unique identifier
           writeOnly: true
-        value:
+        rating:
           type: number
           description: Mean rating
           minimum: 0
@@ -563,8 +563,13 @@ components:
           type: string
           description: url of the table
           readOnly: true
-          example: /restaurants/123
+          example: /restaurants/123/tables/123
         id:
+          type: integer
+          description: Unique identifier
+          readOnly: true
+          example: 123
+        restaurant_id:
           type: integer
           description: Unique identifier
           readOnly: true

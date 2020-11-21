@@ -1,5 +1,6 @@
 from datetime import date
 from logging import debug
+from restaurants.background import init_celery
 import connexion
 import datetime
 import logging
@@ -14,7 +15,7 @@ from connexion import NoContent, request
 
 from restaurants.orm import db, Restaurant,Rating,Table
 
-from restaurants.utils import del_restaurant, get_future_bookings, put_fake_data, valid_openings, add_restaurant, edit_restaurant
+from restaurants.utils import add_rating, del_restaurant, get_future_bookings, put_fake_data, valid_openings, add_restaurant, edit_restaurant, valid_rating
 
 from restaurants.errors import Error, Error400, Error404, Error409, Error500
 
@@ -43,6 +44,9 @@ DEFAULT_CONFIGURATION = {
     "TIMEOUT": 0.001, # timeout for external calls
     "BOOK_SERVICE_URL": "127.0.0.1:8079", # bookings microservice url
 
+    "COMMIT_RATINGS_AFTER": 600, # celery config for updating the ratings
+    "result_backend" : os.getenv("BACKEND", "redis://localhost:6379"),
+    "broker_url" : os.getenv("BROKER", "redis://localhost:6379"),
 }
 
 def get_restaurants(name=None, opening_time=None, open_day=None, cuisine_type=None, menu=None):
@@ -137,7 +141,7 @@ def post_restaurants():
         return Error500().get()
 
 def get_restaurant(restaurant_id):
-    """ Return a specific booking (request by id)
+    """ Return a specific restaurant (request by id)
 
     GET /restaurants/{restaurant_id}
 
@@ -204,9 +208,9 @@ def delete_restaurant(restaurant_id):
     return NoContent, 204
 
 def get_restaurant_rating(restaurant_id):
-    """ Return a specific restaurant (request by id)
+    """ Return the rating of a specific restaurant (request by id)
 
-    GET /restaurants/{restaurant_id}
+    GET /restaurants/{restaurant_id}/rate
 
         Status Codes:
             200 - OK
@@ -215,21 +219,37 @@ def get_restaurant_rating(restaurant_id):
     q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
     if q is None:
         return Error404("Restaurant not found").get()
-    return q.dump(), 200
+    return q.dump_rating(), 200
 
 def post_restaurant_rating(restaurant_id):
-    """ Return a specific restaurant (request by id)
+    """ Add a new restaurant.
 
-    GET /restaurants/{restaurant_id}
+    POST /restaurants
+    
+    Returns the restaurant if it can be made, otherwise returns an error message.
 
-        Status Codes:
-            200 - OK
-            404 - Restaurant not found
+    Requires a json object with:
+        - rater_id
+        - rating
+
+    Status Codes:
+        202 - The booking has been created
+        400 - Bad request or Restaurant already rated by the user
+        404 - Restaurant not found
     """
-    q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
-    if q is None:
-        return Error404("Restaurant not found").get()
-    return q.dump(), 200
+    req = request.json
+    err = valid_rating(req, restaurant_id)
+    if err is not None:
+        return err
+
+    code = add_rating(req, restaurant_id)
+    if code is None:
+        return Error500().get()
+
+    if valid_rating(req, restaurant_id) is not None:
+        return NoContent, 202
+    else: # unexpected error
+        return Error500().get()
 
 def get_restaurant_tables(restaurant_id):
     """ Return a specific restaurant (request by id)
@@ -382,6 +402,8 @@ def setup(application, config):
             put_fake_data()
 
 def create_app(configuration=None):
+    if configuration is None:
+        configuration = os.getenv("CONFIG", "TEST")
     logging.basicConfig(level=logging.INFO)
 
     app = connexion.App(__name__)
@@ -396,7 +418,28 @@ def create_app(configuration=None):
     with app.app.app_context():
         setup(application, conf)
 
+    init_celery(application)
+
     return app
+
+def create_worker_app():
+    configuration = os.getenv("CONFIG", "TEST")
+    logging.basicConfig(level=logging.INFO)
+
+    app = connexion.App(__name__)
+    app.add_api('./swagger.yaml')
+    # set the WSGI application callable to allow using uWSGI:
+    # uwsgi --http :8080 -w app
+    application = app.app
+
+    conf = get_config(configuration)
+    for k,v in conf.items():
+        application.config[k] = v # insert the requested configuration in the app configuration
+
+    
+    db.init_app(application)
+
+    return application
 
 if __name__ == '__main__':
 

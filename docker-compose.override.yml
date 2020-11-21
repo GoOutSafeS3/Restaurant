@@ -1,0 +1,69 @@
+version: '3'
+services:
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - local
+    volumes:
+      - .:/coverage
+      - ./restaurants/db:/code/restaurants/db
+    command: /code/test.sh
+    environment:
+      - "BROKER=redis://local-redis:6379"
+      - "BACKEND=redis://local-redis:6379"
+      - "CONFIG=TEST"
+  restaurants:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - type: volume
+        source: db-testing
+        target: /code/restaurants/db
+    depends_on:
+      - redis
+      - worker
+    ports:
+      - "5000:5000"
+    environment:
+      - "BROKER=redis://redis:6379"
+      - "BACKEND=redis://redis:6379"
+      - "CONFIG=TEST"
+  worker:
+    build:
+      context: .
+    environment:
+      - "BROKER=redis://redis:6379"
+      - "BACKEND=redis://redis:6379"
+      - "CONFIG=TEST"
+    command: celery -A restaurants.worker:celery worker -l info -B -s /tmp/celerybeat-schedule
+    depends_on:
+      - redis
+    volumes:
+      - type: volume
+        source: db-testing
+        target: /code/restaurants/db
+  redis:
+    image: "redis:alpine"
+    expose:
+      - "6379"
+  local:
+    build:
+      context: .
+    environment:
+      - "BROKER=redis://local-redis:6379"
+      - "BACKEND=redis://local-redis:6379"
+      - "CONFIG=TEST"
+    command: celery -A restaurants.worker:celery worker -l info -B -s /tmp/celerybeat-schedule 
+    volumes:
+      - ./restaurants/db:/code/restaurants/db
+    depends_on:
+      - local-redis
+  local-redis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"
+volumes:
+    db-testing:

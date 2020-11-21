@@ -1,0 +1,470 @@
+openapi: 3.0.1
+info:
+  title: Restaurants Service API
+  description: Restaurants from GoOutSafe with Microservices
+  version: "0.1"
+servers:
+- url: /
+paths:
+  /restaurants:
+    get:
+      tags:
+      - Restaurants
+      summary: get a list of restaurants
+      operationId: app.get_restaurants
+      parameters:
+      - name: name
+        in: query
+        description: Restaurant name
+        required: false
+        schema:
+          type: string
+      - name: opening_time
+        in: query
+        description: Open at
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 23
+      - name: open_day
+        in: query
+        description: Open on
+        required: false
+        schema:
+          type: integer
+          minimum: 1 # monday
+          maximum: 7 # sunday
+      - name: cuisine_type
+        in: query
+        description: Cuisine type
+        required: false
+        schema:
+          type: string
+      - name: menu
+        in: query
+        description: Restaurant menu
+        required: false
+        schema:
+          type: string
+      responses:
+        200:
+          description: Restaurants found
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Restaurant'
+        400:
+          description: Bad request
+    post:
+      tags:
+      - Restaurants
+      summary: Post a restaurant
+      operationId: app.post_restaurants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Restaurant'
+      responses:
+        201:
+          description: Restaurant created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Restaurant'
+        400:
+          description: Bad request
+  /restaurants/{restaurant_id}:
+    get:
+      tags:
+      - Restaurants
+      summary: Get a single restaurant
+      operationId: app.get_restaurant
+      parameters:
+      - name: restaurant_id
+        in: path
+        description: Restaurant's Unique identifier
+        required: true
+        schema:
+          type: integer
+      responses:
+        200:
+          description: Return restaurant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Restaurant'
+        404:
+          description: Restaurant not found
+    put:
+      tags:
+      - Restaurants
+      summary: Edit a restaurant
+      operationId: app.put_restaurant
+      parameters:
+      - name: restaurant_id
+        in: path
+        description: Restaurant's Unique identifier
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Restaurant'
+      responses:
+        200:
+          description: Restaurant edited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Restaurant'
+        400:
+          description: Bad request
+        404:
+          description: Restaurant not found
+    delete:
+      tags:
+      - Restaurants
+      summary: Delete a restaurant
+      operationId: app.delete_restaurant
+      parameters:
+      - name: restaurant_id
+        in: path
+        description: Restaurant's Unique identifier
+        required: true
+        schema:
+          type: integer
+      - name: force
+        in: query
+        description: Try to delete future reservations
+        required: false
+        schema:
+          type: boolean
+      responses:
+        204:
+          description: Restaurant deleted
+        404:
+          description: Restaurant not found
+        409:
+          description: The restaurant has pending reservations, those must be deleted first, try using the force parameter
+  /restaurants/{restaurant_id}/rate:
+    get:
+      tags:
+      - Restaurants
+      summary: Get restaurant rating
+      operationId: app.get_restaurant_rating
+      parameters:
+      - name: restaurant_id
+        in: path
+        description: Restaurant's Unique identifier
+        required: true
+        schema:
+          type: integer
+      responses:
+        200:
+          description: Return restaurant rating
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rating'
+        404:
+          description: Restaurant not found
+    post:
+      tags:
+      - Restaurants
+      summary: Rate a restaurant
+      operationId: app.post_restaurant_rating
+      parameters:
+      - name: restaurant_id
+        in: path
+        description: Restaurant's Unique identifier
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Rating'
+      responses:
+        202:
+          description: Rating created (rating of the restaurant not updated for now)
+        400:
+          description: Bad request or Restaurant already rated by the user
+        404:
+          description: Restaurant not found
+  /restaurants/{restaurant_id}/tables:
+    get:
+      tags:
+      - Restaurants
+      summary: Get restaurant tables
+      operationId: app.get_restaurant_tables
+      parameters:
+      - name: restaurant_id
+        in: path
+        description: Restaurant's Unique identifier
+        required: true
+        schema:
+          type: integer
+      responses:
+        200:
+          description: Return restaurant tables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Table'
+        404:
+          description: Restaurant not found
+    post:
+      tags:
+      - Restaurants
+      summary: Add a restaurant table
+      operationId: app.post_restaurant_table
+      parameters:
+      - name: restaurant_id
+        in: path
+        description: Restaurant's Unique identifier
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Table'
+      responses:
+        201:
+          description: Table created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table'
+        400:
+          description: Bad request
+        404:
+          description: Restaurant not found
+  /restaurants/{restaurant_id}/tables/{table_id}:
+    get:
+      tags:
+      - Restaurants
+      summary: Get restaurant table
+      operationId: app.get_restaurant_table
+      parameters:
+      - name: restaurant_id
+        in: path
+        description: Restaurant's Unique identifier
+        required: true
+        schema:
+          type: integer
+      - name: table_id
+        in: path
+        description: Table's Unique identifier
+        required: true
+        schema:
+          type: integer
+      responses:
+        200:
+          description: Return restaurant table
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table'
+        404:
+          description: Restaurant or Table not found
+    put:
+      tags:
+      - Restaurants
+      summary: Edit a restaurant table
+      operationId: app.put_restaurant_table
+      parameters:
+      - name: restaurant_id
+        in: path
+        description: Restaurant's Unique identifier
+        required: true
+        schema:
+          type: integer
+      - name: table_id
+        in: path
+        description: Table's Unique identifier
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Table'
+      responses:
+        200:
+          description: Table edited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table'
+        400:
+          description: Bad request
+        404:
+          description: Restaurant or Table not found
+    delete:
+      tags:
+      - Restaurants
+      summary: Delete a restaurant table
+      operationId: app.delete_restaurant_table
+      parameters:
+      - name: restaurant_id
+        in: path
+        description: Restaurant's Unique identifier
+        required: true
+        schema:
+          type: integer
+      - name: table_id
+        in: path
+        description: Table's Unique identifier
+        required: true
+        schema:
+          type: integer
+      - name: force
+        in: query
+        description: try to delete future reservations
+        required: false
+        schema:
+          type: boolean
+      responses:
+        204:
+          description: Table deleted
+        404:
+          description: Restaurant or Table does not exists
+        409:
+          description: The table has pending reservations, those must be deleted first, try using the force parameter
+components:
+  schemas:
+    Restaurant:
+      required:
+      - name
+      - lat
+      - lon
+      - phone
+      - first_opening_hour
+      - first_closing_hour
+      - second_opening_hour
+      - second_closing_hour
+      - occupation_time
+      - cuisine_type
+      - menu
+      - closed_days
+      type: object
+      properties:
+        url:
+          maxLength: 100
+          minLength: 1
+          type: string
+          description: url of the restaurant
+          readOnly: true
+          example: /restaurants/123
+        id:
+          type: integer
+          description: Unique identifier
+          readOnly: true
+          example: 123
+        name:
+          maxLength: 100
+          minLength: 1
+          type: string
+          description: Restaurant's name
+          example: "My Pizza Restaurant"
+        rating_val:
+          type: number
+          minimum: 0
+          maximum: 5
+          example: 3.4
+        rating_num:
+          type: integer
+          minimum: 0
+          example: 123
+        lat:
+          type: number
+          description: Restaurant Latitude
+          example: 42.42
+        lon:
+          type: number
+          description: Restaurant Longitude
+          example: 42.42
+        phone:
+          type: string
+          minLength: 5
+          maxLength: 50
+          description: Restaurant Phone Number
+          example: "050123456"
+        first_opening_hour:
+          type: integer
+          description: First opening hour (first submitable booking time)
+          minimum: 0
+          maximum: 23
+        first_closing_hour:
+          type: integer
+          description: First closing hour (last submitable booking time)
+          minimum: 0
+          maximum: 23
+        second_opening_hour:
+          type: integer
+          description: Second opening hour (if available)
+          minimum: 0
+          maximum: 23
+        second_closing_hour:
+          type: integer
+          description: Second closing hour (if available)
+          minimum: 0
+          maximum: 23
+        occupation_time:
+          type: integer
+          description: Time for a table to be clear again
+          minimum: 1
+          maximum: 24
+        cuisine_type:
+          type: string
+          description: Cousine type
+        menu:
+          type: string
+          description: Restaurant menu
+        closed_days:
+          type: array
+          items:
+            type: integer
+            minimum: 1 # monday
+            maximum: 7 # sunday
+          minItems: 0
+          maxItems: 7
+    Rating:
+      required:
+      - user_id
+      - value
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: User unique identifier
+        value:
+          type: number
+          description: Mean rating
+          minimum: 0
+          maximum: 5
+        ratings:
+          type: integer
+          description: Number of ratings
+          minimum: 0
+    Table:
+      required:
+        - capacity
+      type: object
+      properties:
+        capacity:
+          type: integer
+          description: Table capacity
+          minimum: 1

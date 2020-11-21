@@ -161,7 +161,7 @@ paths:
           type: integer
       - name: force
         in: query
-        description: Try to delete future reservations
+        description: Try to delete future reservations, disabled for now
         required: false
         schema:
           type: boolean
@@ -405,7 +405,7 @@ paths:
           type: integer
       - name: force
         in: query
-        description: try to delete future reservations
+        description: try to delete future reservations, disabled for now
         required: false
         schema:
           type: boolean

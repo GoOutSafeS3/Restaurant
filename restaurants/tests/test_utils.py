@@ -2,7 +2,7 @@ from datetime import date
 import unittest 
 import datetime
 
-from restaurants.utils import get_restaurant, get_tables
+from restaurants.utils import *
 
 from restaurants.app import create_app 
 

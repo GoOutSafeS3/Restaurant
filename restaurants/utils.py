@@ -89,62 +89,84 @@ restaurants = [
     }
 ]
 
+bookings = [
+    {"user_id": 3, "rest_id": 4, "table_id": 3, "number_of_people": 2, "booking_datetime": (datetime.datetime.now() + datetime.timedelta(days=2))},
+    {"user_id": 4, "rest_id": 3, "table_id": 4, "number_of_people": 1, "booking_datetime": (datetime.datetime.now() + datetime.timedelta(days=1))},
+    {"user_id": 2, "rest_id": 2, "table_id": 2, "number_of_people": 3, "booking_datetime": datetime.datetime.now()},
+    {"user_id": 2, "rest_id": 2, "table_id": 2, "number_of_people": 3, "booking_datetime": (datetime.datetime.now() - datetime.timedelta(days=1))},
+    {"user_id": 4, "rest_id": 3, "table_id": 5, "number_of_people": 1, "booking_datetime": (datetime.datetime.now() + datetime.timedelta(days=2))},
+    {"user_id": 3, "rest_id": 3, "table_id": 4, "number_of_people": 1, "booking_datetime": (datetime.datetime.now() - datetime.timedelta(days=2))},
+]
+
 """ The list of tables for each restaurant used when the mocks are required 
     
     They are identified starting from 1.
 """
 tables = [
-    [{"id":1, "capacity":4}],
-    [{"id":2, "capacity":3}],
-    [{"id":4, "capacity":5}, {"id":5, "capacity":4}, {"id":6, "capacity":2}],
-    [{"id":3, "capacity":2}]
+    {"id":1, "restaurant_id": 1, "capacity":4},
+    {"id":2, "restaurant_id": 2, "capacity":3},
+    {"id":3, "restaurant_id": 4, "capacity":2},
+    {"id":4, "restaurant_id": 3, "capacity":5},
+    {"id":5, "restaurant_id": 3, "capacity":4},
+    {"id":6, "restaurant_id": 3, "capacity":2},
 ]
+
+def put_to(url, data):
+    """ Makes a post request with a timeout.
+
+    Returns the json and the status code
+
+    The timeout is set in config.ini or the default one is used (0.001)
+    """
+    try:
+        with current_app.app_context():
+            r = requests.put(url, data,timeout=current_app.config["TIMEOUT"])
+            return r.json(),r.status_code
+    except:
+        return None
+
+def post_to(url, data):
+    """ Makes a post request with a timeout.
+
+    Returns the json and the status code
+
+    The timeout is set in config.ini or the default one is used (0.001)
+    """
+    try:
+        with current_app.app_context():
+            r = requests.post(url, data, timeout=current_app.config["TIMEOUT"])
+            return r.json(),r.status_code
+    except:
+        return None
 
 def get_from(url):
     """ Makes a get request with a timeout.
 
-    Returns the json object if the code is 200, otherwise None
+    Returns the json and the status code
 
     The timeout is set in config.ini or the default one is used (0.001)
     """
     try:
         with current_app.app_context():
             r = requests.get(url, timeout=current_app.config["TIMEOUT"])
-            if r.status_code == 200:
-                return r.json()
-            return None
+            return r.json(),r.status_code
     except:
-        return None
+        return None,-1
 
-def get_restaurant(id):
-    """ Get the restaurant json or None 
+def get_future_bookings(restaurant_id):
+    """ Get an array of bookings and the status code for the future booking of the specified restaurant_id
     
     Use the default ones if mocks are requested
     """
     with current_app.app_context():
         if current_app.config["USE_MOCKS"]:
-            id -= 1 # restaurant IDs starting by 1
-            if 0 <= id < len(restaurants):
-                return restaurants[id]
-            else:
-                return None
+            ret = []
+            for b in bookings:
+                if b["rest_id"] == restaurant_id and datetime.datetime.now() < b["booking_datetime"]:
+                    ret.append(b)
+            return ret,200
         else:
-            return get_from(current_app.config["REST_SERVICE_URL"]+"/restaurants/"+str(id))
-
-def get_tables(id):
-    """ Get the list fo the restaurant's tables or None 
-    
-    Use the default ones if mocks are requested
-    """
-    with current_app.app_context():
-        if current_app.config["USE_MOCKS"]:
-            id -= 1 # restaurant IDs starting by 1
-            if 0 <= id < len(restaurants):
-                return tables[id]
-            else:
-                return None
-        else:
-            return get_from(current_app.config["REST_SERVICE_URL"]+"/restaurants/"+str(id)+"/tables")
+            return get_from(current_app.config["BOOK_SERVICE_URL"]+"/bookings?rest=%d&begin=%s"%(id,str(datetime.datetime.now())))
 
 def same_restaurant(rest,rest2):
     for k in rest.keys():
@@ -224,10 +246,20 @@ def valid_openings(first_opening_hour, first_closing_hour, second_opening_hour, 
                 return Error400("Closing time cannot be before opening time (first)").get()
     return None
 
+def del_restaurant(restaurant_id):
+    try:
+        restaurant = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+        
+        db.session.delete(restaurant)
+        db.session.commit()
+        return True
+    except:
+        db.session.rollback()
+    return False
+
 def edit_restaurant(restaurant_id, obj):
     try:
         restaurant = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
-        restaurant.id = obj["rest_id"]
         restaurant.name = obj["name"]
         restaurant.lat = obj["lat"]
         restaurant.lon = obj["lon"]
@@ -275,6 +307,14 @@ def add_restaurant(obj):
         db.session.rollback()
         return None
 
+def add_table(obj):
+    try:
+        table = Table()
+        table.capacity = obj["capacity"]
+        table.rest_id = obj["restaurant_id"]
+        db.session.commit()
+    except:
+        db.session.rollback()
 
 def put_fake_data():
     """
@@ -352,37 +392,5 @@ def put_fake_data():
     for restaurant in restaurants:
         add_restaurant(restaurant)
 
-    obj = {
-        "name": "",
-        "lat": "",
-        "lon": "",
-        "phone": "",
-        "first_opening_hour": "",
-        "first_closing_hour": "",
-        "second_opening_hour": "",
-        "second_closing_hour": "",
-        "occupation_time": "",
-        "cuisine_type": "",
-        "menu": "",
-        "closed_days": ""
-    }
-
-    # add_booking(user_id, rest_id, number_of_people, booking_datetime, table_id)
-    
-    # 1: FUTURE BOOKING (USER 3, REST 4, TABLE 3)
-    # add_booking(3, 4, 2, (datetime.datetime.now() + datetime.timedelta(days=2)), 3) 
-    
-    # # 2: FUTURE BOOKING (USER 4, REST 3, TABLE 4)
-    # add_booking(4, 3, 1, (datetime.datetime.now() + datetime.timedelta(days=1)), 4)
-    
-    # # 3: OLD BOOKING (USER 2, REST 2, TABLE 2)
-    # add_booking(2, 2, 3, (datetime.datetime.now()), 2)
-    
-    # # 4: OLD BOOKING (USER 2, REST 2, TABLE 2)
-    # add_booking(2, 2, 3, (datetime.datetime.now() - datetime.timedelta(days=1)), 2)
-    
-    # # 5: FUTURE BOOKING (USER 4, REST 3, TABLE 5)
-    # add_booking(4, 3, 1, (datetime.datetime.now() + datetime.timedelta(days=2)), 5)
-    
-    # # 6: OLD BOOKING (USER 3, REST 3, TABLE 4)
-    # add_booking(3, 3, 1, (datetime.datetime.now() - datetime.timedelta(days=2)), 4)
+    for table in tables:
+        add_table(table)

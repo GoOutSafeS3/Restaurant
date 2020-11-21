@@ -14,9 +14,9 @@ from connexion import NoContent, request
 
 from restaurants.orm import db, Restaurant,Rating,Table
 
-from restaurants.utils import put_fake_data, valid_openings, add_restaurant, edit_restaurant
+from restaurants.utils import del_restaurant, get_future_bookings, put_fake_data, valid_openings, add_restaurant, edit_restaurant
 
-from restaurants.errors import Error, Error400, Error404, Error500
+from restaurants.errors import Error, Error400, Error404, Error409, Error500
 
 import sys
 sys.path.append("./restaurants/")
@@ -139,7 +139,7 @@ def post_restaurants():
 def get_restaurant(restaurant_id):
     """ Return a specific booking (request by id)
 
-    GET /restaurant/{restaurant_id}
+    GET /restaurants/{restaurant_id}
 
         Status Codes:
             200 - OK
@@ -153,7 +153,7 @@ def get_restaurant(restaurant_id):
 def put_restaurant(restaurant_id):
     """ Return a specific booking (request by id)
 
-    GET /restaurant/{restaurant_id}
+    GET /restaurants/{restaurant_id}
 
         Status Codes:
             200 - OK
@@ -168,14 +168,14 @@ def put_restaurant(restaurant_id):
 
     restaurant, status_code = get_restaurant(rest_id)
     if status_code == 200:
-        return restaurant, 201
+        return restaurant, 200
     else: # unexpected error
         return Error500().get()
 
 def delete_restaurant(restaurant_id):
     """ Delete a restaurant specified by the id.
 
-    DELETE /restaurant/{restaurant_id}
+    DELETE /restaurants/{restaurant_id}
     
     Deletion is only possible if the restaurant has not yet passed.
 
@@ -191,12 +191,22 @@ def delete_restaurant(restaurant_id):
     if p is None:
         return Error404("Restaurant not found").get()
 
+    array,code = get_future_bookings(restaurant_id)
+    if code != 200:
+        return Error500().get() # Cannot connect to the bookings service
+
+    if len(array) != 0:
+        return Error409("The restaurant has pending reservations, those must be deleted first, try using the force parameter").get()
+
+    if not del_restaurant(restaurant_id):
+        return Error500().get() # DB error
+
     return NoContent, 204
 
 def get_restaurant_rating(restaurant_id):
     """ Return a specific restaurant (request by id)
 
-    GET /restaurant/{restaurant_id}
+    GET /restaurants/{restaurant_id}
 
         Status Codes:
             200 - OK
@@ -210,7 +220,7 @@ def get_restaurant_rating(restaurant_id):
 def post_restaurant_rating(restaurant_id):
     """ Return a specific restaurant (request by id)
 
-    GET /restaurant/{restaurant_id}
+    GET /restaurants/{restaurant_id}
 
         Status Codes:
             200 - OK
@@ -224,7 +234,7 @@ def post_restaurant_rating(restaurant_id):
 def get_restaurant_tables(restaurant_id):
     """ Return a specific restaurant (request by id)
 
-    GET /restaurant/{restaurant_id}/tables
+    GET /restaurants/{restaurant_id}/tables
 
         Status Codes:
             200 - OK
@@ -238,7 +248,7 @@ def get_restaurant_tables(restaurant_id):
 def post_restaurant_table(restaurant_id):
     """ Return a specific restaurant (request by id)
 
-    GET /restaurant/{restaurant_id}/tables
+    GET /restaurants/{restaurant_id}/tables
 
         Status Codes:
             200 - OK
@@ -252,7 +262,7 @@ def post_restaurant_table(restaurant_id):
 def get_restaurant_table(restaurant_id, table_id):
     """ Return a specific restaurant (request by id)
 
-    GET /restaurant/{restaurant_id}/tables
+    GET /restaurants/{restaurant_id}/tables
 
         Status Codes:
             200 - OK
@@ -266,7 +276,7 @@ def get_restaurant_table(restaurant_id, table_id):
 def put_restaurant_table(restaurant_id, table_id):
     """ Return a specific restaurant (request by id)
 
-    GET /restaurant/{restaurant_id}/tables
+    GET /restaurants/{restaurant_id}/tables
 
         Status Codes:
             200 - OK
@@ -280,7 +290,7 @@ def put_restaurant_table(restaurant_id, table_id):
 def delete_restaurant_table(restaurant_id, table_id):
     """ Return a specific restaurant (request by id)
 
-    GET /restaurant/{restaurant_id}/tables
+    GET /restaurants/{restaurant_id}/tables
 
         Status Codes:
             200 - OK

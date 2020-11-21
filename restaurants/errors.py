@@ -41,6 +41,14 @@ class Error404(Error):
         self.status = 404
         self.detail = detail
 
+class Error409(Error):
+    def __init__(self, detail):
+        """ Not Found """
+        self.type = "about:blank"
+        self.title = "Conflict"
+        self.status = 409
+        self.detail = detail
+
 class Error500(Error):
     def __init__(self):
         """ Internal Server Error 

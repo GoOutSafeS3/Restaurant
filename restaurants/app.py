@@ -1,0 +1,397 @@
+from datetime import date
+from logging import debug
+import connexion
+import datetime
+import logging
+import configparser
+import sys
+import os
+import dateutil.parser
+
+from flask import current_app
+
+from connexion import NoContent, request
+
+from restaurants.orm import db, Restaurant,Rating,Table
+
+from restaurants.utils import put_fake_data, valid_openings, add_restaurant, edit_restaurant
+
+from restaurants.errors import Error, Error400, Error404, Error500
+
+import sys
+sys.path.append("./restaurants/")
+
+"""
+The default app configuration: 
+in case a configuration is not found or 
+some data is missing
+"""
+DEFAULT_CONFIGURATION = { 
+
+    "FAKE_DATA": False, # insert some default data in the database (for tests)
+    "REMOVE_DB": False, # remove database file when the app starts
+    "DB_DROPALL": False,
+
+    "IP": "0.0.0.0", # the app ip
+    "PORT": 8080, # the app port
+    "DEBUG":True, # set debug mode
+
+    "SQLALCHEMY_DATABASE_URI": "restaurants.db", # the database path/name
+    "SQLALCHEMY_TRACK_MODIFICATIONS": False,
+
+    "USE_MOCKS": False, # use mocks for external calls
+    "TIMEOUT": 0.001, # timeout for external calls
+    "BOOK_SERVICE_URL": "127.0.0.1:8079", # bookings microservice url
+
+}
+
+def get_restaurants(name=None, opening_time=None, open_day=None, cuisine_type=None, menu=None):
+    """ Return the list of restaurants.
+
+    GET /restaurants?[name=N_ID&][opening_time=TIME_ID&][open_day=DAY_ID&][cuisine_type=CUISINE_DT&][menu=MENU_DT&]
+
+    It's possible to filter the restaurants thanks the query's parameters.
+    The parameters can be overlapped in any way.
+    All paramters are optional.
+
+    - name: Restaruant that match the given name
+    - opening_time: All restaurants that are open at that hour
+    - open_day: All restaurants that are open in that day
+    - cuisine_type: All restaurants that match the cuisine type
+    - menu: All restaurants that match the menu
+
+    Status Codes:
+        200 - OK
+        400 - Something wrong in the openings
+    """
+
+    q = db.session.query(Restaurant)
+    
+    if name is not None:
+        q = q.filter_by(Restaurant.name.contains(name))
+    if opening_time is not None:
+        if opening_time >= 0 and opening_time <= 23:
+            q = q.filter_by(
+                (Restaurant.first_opening_hour.isnot(None) and Restaurant.first_closing_hour.isnot(None) and Restaurant.first_opening_hour <= opening_time <= Restaurant.first_closing_hour)
+                or
+                (Restaurant.second_opening_hour.isnot(None) and Restaurant.second_closing_hour.isnot(None) and Restaurant.second_opening_hour <= opening_time <= Restaurant.second_closing_hour)
+                )
+        else:
+            return Error400("Argument: opening_time is not a valid hour").get()
+    if open_day is not None:
+        if open_day >= 1 and opening_time <= 7:
+            q = q.filter_by(restaurant_id=rest)
+        else:
+            return Error400("Argument: open_day is not a valid day").get()
+    if cuisine_type is not None:
+        q = q.filter_by(Restaurant.columnName.contains(name))
+    if menu is not None:
+        q = q.filter_by(Restaurant.columnName.contains(name))
+
+    return [p.dump() for p in q], 200
+
+def post_restaurants():
+    """ Add a new restaurant.
+
+    POST /restaurants
+    
+    Returns the restaurant if it can be made, otherwise returns an error message.
+
+    Requires a json object with:
+        - name
+        - lat
+        - lon
+        - phone
+        - first_opening_hour
+        - first_closing_hour
+        - second_opening_hour
+        - second_closing_hour
+        - occupation_time
+        - cuisine_type
+        - menu
+        - closed_days
+
+    Status Codes:
+        201 - The booking has been created
+        400 - Data error
+    """
+
+    req = request.json
+    err = valid_openings(req["first_opening_hour"],req["first_closing_hour"],req["second_opening_hour"],req["second_closing_hour"])
+    if err is not None:
+        return err
+
+    rest_id = add_restaurant(req)
+
+    restaurant, status_code = get_restaurant(rest_id)
+    if status_code == 200:
+        return restaurant, 201
+    else: # unexpected error
+        return Error500().get()
+
+def get_restaurant(restaurant_id):
+    """ Return a specific booking (request by id)
+
+    GET /restaurant/{restaurant_id}
+
+        Status Codes:
+            200 - OK
+            404 - Booking not found
+    """
+    q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+    if q is None:
+        return Error404("Restaurant not found").get()
+    return q.dump(), 200
+
+def put_restaurant(restaurant_id):
+    """ Return a specific booking (request by id)
+
+    GET /restaurant/{restaurant_id}
+
+        Status Codes:
+            200 - OK
+            404 - Booking not found
+    """
+    req = request.json
+    err = valid_openings(req["first_opening_hour"],req["first_closing_hour"],req["second_opening_hour"],req["second_closing_hour"])
+    if err is not None:
+        return err
+
+    rest_id = edit_restaurant(restaurant_id, req)
+
+    restaurant, status_code = get_restaurant(rest_id)
+    if status_code == 200:
+        return restaurant, 201
+    else: # unexpected error
+        return Error500().get()
+
+def delete_restaurant(restaurant_id):
+    """ Delete a restaurant specified by the id.
+
+    DELETE /restaurant/{restaurant_id}
+    
+    Deletion is only possible if the restaurant has not yet passed.
+
+    Otherwise it remains stored (necessary for contact tracing)
+
+    Status Codes:
+        204 - Deleted
+        404 - Restaurant not found
+        409 - The restaurant has pending reservations, those must be deleted first, try using the force parameter
+        500 - Error with the database
+    """
+    p = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+    if p is None:
+        return Error404("Restaurant not found").get()
+
+    return NoContent, 204
+
+def get_restaurant_rating(restaurant_id):
+    """ Return a specific restaurant (request by id)
+
+    GET /restaurant/{restaurant_id}
+
+        Status Codes:
+            200 - OK
+            404 - Restaurant not found
+    """
+    q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+    if q is None:
+        return Error404("Restaurant not found").get()
+    return q.dump(), 200
+
+def post_restaurant_rating(restaurant_id):
+    """ Return a specific restaurant (request by id)
+
+    GET /restaurant/{restaurant_id}
+
+        Status Codes:
+            200 - OK
+            404 - Restaurant not found
+    """
+    q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+    if q is None:
+        return Error404("Restaurant not found").get()
+    return q.dump(), 200
+
+def get_restaurant_tables(restaurant_id):
+    """ Return a specific restaurant (request by id)
+
+    GET /restaurant/{restaurant_id}/tables
+
+        Status Codes:
+            200 - OK
+            404 - Restaurant not found
+    """
+    q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+    if q is None:
+        return Error404("Restaurant not found").get()
+    return q.dump(), 200
+
+def post_restaurant_table(restaurant_id):
+    """ Return a specific restaurant (request by id)
+
+    GET /restaurant/{restaurant_id}/tables
+
+        Status Codes:
+            200 - OK
+            404 - Restaurant not found
+    """
+    q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+    if q is None:
+        return Error404("Restaurant not found").get()
+    return q.dump(), 200
+
+def get_restaurant_table(restaurant_id, table_id):
+    """ Return a specific restaurant (request by id)
+
+    GET /restaurant/{restaurant_id}/tables
+
+        Status Codes:
+            200 - OK
+            404 - Restaurant not found
+    """
+    q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+    if q is None:
+        return Error404("Restaurant not found").get()
+    return q.dump(), 200
+
+def put_restaurant_table(restaurant_id, table_id):
+    """ Return a specific restaurant (request by id)
+
+    GET /restaurant/{restaurant_id}/tables
+
+        Status Codes:
+            200 - OK
+            404 - Restaurant not found
+    """
+    q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+    if q is None:
+        return Error404("Restaurant not found").get()
+    return q.dump(), 200
+
+def delete_restaurant_table(restaurant_id, table_id):
+    """ Return a specific restaurant (request by id)
+
+    GET /restaurant/{restaurant_id}/tables
+
+        Status Codes:
+            200 - OK
+            404 - Restaurant not found
+    """
+    q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+    if q is None:
+        return Error404("Restaurant not found").get()
+    return q.dump(), 200
+
+
+def get_config(configuration=None):
+    """ Returns a json file containing the configuration to use in the app
+
+    The configuration to be used can be passed as a parameter, 
+    otherwise the one indicated by default in config.ini is chosen
+
+    ------------------------------------
+    [CONFIG]
+    CONFIG = The_default_configuration
+    ------------------------------------
+
+    Params:
+        - configuration: if it is a string it indicates the configuration to choose in config.ini
+    """
+    try:
+        parser = configparser.ConfigParser()
+        if parser.read('config.ini') != []:
+            
+            if type(configuration) != str: # if it's not a string, take the default one
+                configuration = parser["CONFIG"]["CONFIG"]
+
+            logging.info("- GoOutSafe:Restaurants CONFIGURATION: %s",configuration)
+            configuration = parser._sections[configuration] # get the configuration data
+
+            parsed_configuration = {}
+            for k,v in configuration.items(): # Capitalize keys and translate strings (when possible) to their relative number or boolean
+                k = k.upper()
+                parsed_configuration[k] = v
+                try:
+                    parsed_configuration[k] = int(v)
+                except:
+                    try:
+                        parsed_configuration[k] = float(v)
+                    except:
+                        if v == "true":
+                            parsed_configuration[k] = True
+                        elif v == "false":
+                            parsed_configuration[k] = False
+
+            for k,v in DEFAULT_CONFIGURATION.items():
+                if not k in parsed_configuration: # if some data are missing enter the default ones
+                    parsed_configuration[k] = v
+
+            return parsed_configuration
+        else:
+            return DEFAULT_CONFIGURATION
+    except Exception as e:
+        logging.info("- GoOutSafe:Restaurants CONFIGURATION ERROR: %s",e)
+        logging.info("- GoOutSafe:Restaurants RUNNING: Default Configuration")
+        return DEFAULT_CONFIGURATION
+
+def setup(application, config):
+
+    if config["REMOVE_DB"]: # remove the db file
+        logging.info("- GoOutSafe:Restaurants Removing Database...")
+        try:
+            os.remove("restaurants/"+config["SQLALCHEMY_DATABASE_URI"])
+            logging.info("- GoOutSafe:Restaurants Database Removed")
+        except:
+            pass
+
+    config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///"+config["SQLALCHEMY_DATABASE_URI"]
+
+    for k,v in config.items():
+        application.config[k] = v # insert the requested configuration in the app configuration
+
+    db.init_app(application)
+
+    if config["DB_DROPALL"]: #remove the data in the db
+        logging.info("- GoOutSafe:Restaurants Dropping All from Database...")
+        db.drop_all(app=application)
+
+    db.create_all(app=application)
+
+    if config["FAKE_DATA"]: #add fake data (for testing)
+        logging.info("- GoOutSafe:Restaurants Adding Fake Data...")
+        with application.app_context():
+            put_fake_data()
+
+def create_app(configuration=None):
+    logging.basicConfig(level=logging.INFO)
+
+    app = connexion.App(__name__)
+    app.add_api('./swagger.yaml')
+    # set the WSGI application callable to allow using uWSGI:
+    # uwsgi --http :8080 -w app
+    application = app.app
+
+    conf = get_config(configuration)
+    logging.info(conf)
+    logging.info("- GoOutSafe:Restaurants ONLINE @ ("+conf["IP"]+":"+str(conf["PORT"])+")")
+    with app.app.app_context():
+        setup(application, conf)
+
+    return app
+
+if __name__ == '__main__':
+
+    c = None
+    if len(sys.argv) > 1: # if it is inserted
+        c = sys.argv[1] # get the configuration name from the arguments
+
+    app = create_app(c)
+
+    with app.app.app_context():
+        app.run(
+            host=current_app.config["IP"], 
+            port=current_app.config["PORT"], 
+            debug=current_app.config["DEBUG"]
+            )

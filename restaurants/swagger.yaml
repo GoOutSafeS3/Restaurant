@@ -57,7 +57,11 @@ paths:
                 items:
                   $ref: '#/components/schemas/Restaurant'
         400:
-          description: Bad request
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
       - Restaurants
@@ -76,7 +80,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Restaurant'
         400:
-          description: Bad request
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /restaurants/{restaurant_id}:
     get:
       tags:
@@ -99,6 +107,10 @@ paths:
                 $ref: '#/components/schemas/Restaurant'
         404:
           description: Restaurant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     put:
       tags:
       - Restaurants
@@ -124,9 +136,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/Restaurant'
         400:
-          description: Bad request
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         404:
           description: Restaurant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       tags:
       - Restaurants
@@ -150,8 +170,16 @@ paths:
           description: Restaurant deleted
         404:
           description: Restaurant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         409:
           description: The restaurant has pending reservations, those must be deleted first, try using the force parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /restaurants/{restaurant_id}/rate:
     get:
       tags:
@@ -174,6 +202,10 @@ paths:
                 $ref: '#/components/schemas/Rating'
         404:
           description: Restaurant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
       - Restaurants
@@ -196,8 +228,16 @@ paths:
           description: Rating created (rating of the restaurant not updated for now)
         400:
           description: Bad request or Restaurant already rated by the user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         404:
           description: Restaurant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /restaurants/{restaurant_id}/tables:
     get:
       tags:
@@ -231,6 +271,10 @@ paths:
           description: No adequate table
         404:
           description: Restaurant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
       - Restaurants
@@ -257,8 +301,16 @@ paths:
                 $ref: '#/components/schemas/Table'
         400:
           description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         404:
           description: Restaurant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /restaurants/{restaurant_id}/tables/{table_id}:
     get:
       tags:
@@ -287,6 +339,10 @@ paths:
                 $ref: '#/components/schemas/Table'
         404:
           description: Restaurant or Table not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     put:
       tags:
       - Restaurants
@@ -319,8 +375,16 @@ paths:
                 $ref: '#/components/schemas/Table'
         400:
           description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         404:
           description: Restaurant or Table not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       tags:
       - Restaurants
@@ -350,8 +414,16 @@ paths:
           description: Table deleted
         404:
           description: Restaurant or Table does not exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         409:
           description: The table has pending reservations, those must be deleted first, try using the force parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Restaurant:
@@ -382,21 +454,23 @@ components:
           description: Unique identifier
           readOnly: true
           example: 123
+        rating_val:
+          type: number
+          readOnly: true
+          minimum: 0
+          maximum: 5
+          example: 3.4
+        rating_num:
+          type: integer
+          readOnly: true
+          minimum: 0
+          example: 123
         name:
           maxLength: 100
           minLength: 1
           type: string
           description: Restaurant's name
           example: "My Pizza Restaurant"
-        rating_val:
-          type: number
-          minimum: 0
-          maximum: 5
-          example: 3.4
-        rating_num:
-          type: integer
-          minimum: 0
-          example: 123
         lat:
           type: number
           description: Restaurant Latitude
@@ -473,7 +547,38 @@ components:
         - capacity
       type: object
       properties:
+        url:
+          maxLength: 100
+          minLength: 1
+          type: string
+          description: url of the table
+          readOnly: true
+          example: /restaurants/123
+        id:
+          type: integer
+          description: Unique identifier
+          readOnly: true
+          example: 123
         capacity:
           type: integer
           description: Table capacity
           minimum: 1
+    Error:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Error type
+          example: about:blank
+        title:
+          type: string
+          description: Error name
+          example: Bad Request
+        status:
+          type: integer
+          description: Error status code
+          example: about:blank
+        detail:
+          type: string
+          description: Error description
+          example: None is not of type 'string'

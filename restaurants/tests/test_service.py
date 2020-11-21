@@ -6,8 +6,104 @@ import dateutil
 from requests.models import Response
 
 from restaurants.app import create_app 
-from restaurants.utils import restaurants, search_mock_restaurants, same_restaurants
+from restaurants.utils import restaurants, search_mock_restaurants, same_restaurants, same_restaurant
 
+
+restaurants_toaddedit = [
+    {
+        "url": "/restaurants/5", # NO OPENING TIMES
+        "id": 5,
+        "name": "Rest 5",
+        "rating_val": 3.1,
+        "rating_num": 1234,
+        "lat": 42.41,
+        "lon": 42.41,
+        "phone": "050123456",
+        "first_opening_hour": 2,
+        "first_closing_hour": 5,
+        "second_opening_hour": None,
+        "second_closing_hour": None,
+        "occupation_time": 0,
+        "cuisine_type": "cuisine_type",
+        "menu": "menu",
+        "closed_days": [1,2,3,4,5,6,7]
+    },
+    {
+        "url": "/restaurants/6", # ONLY AT LUNCH (CLOSED ON MONDAYS)
+        "id": 2,
+        "name": "Rest 2-new",
+        "rating_val": 3.4,
+        "rating_num": 123,
+        "lat": 42.41,
+        "lon": 42.41,
+        "phone": "050123456",
+        "first_opening_hour": None,
+        "first_closing_hour": None,
+        "second_opening_hour": 20,
+        "second_closing_hour": 24,
+        "occupation_time": 1,
+        "cuisine_type": "cuisine_type new",
+        "menu": "menu-new",
+        "closed_days": [1]
+    }
+]
+
+opening_possibilities = [
+    {
+        "first_opening_hour": "12", 
+        "first_closing_hour": "11", #wrong hours at lunch
+        "second_opening_hour": "19",
+        "second_closing_hour": "23",
+    },
+    {
+        "first_opening_hour": "12", 
+        "first_closing_hour": "15",
+        "second_opening_hour": "19",
+        "second_closing_hour": "18",
+    },
+    {
+        "first_opening_hour": "12", 
+        "first_closing_hour": "15",
+        "second_opening_hour": "19",
+        "second_closing_hour": "37",
+    },
+    {
+        "first_opening_hour": "12", 
+        "first_closing_hour": "20",
+        "second_opening_hour": "19",
+        "second_closing_hour": "22",
+    },
+    {
+        "first_opening_hour": "20", 
+        "first_closing_hour": "22",
+        "second_opening_hour": "12",
+        "second_closing_hour": "15",
+    },
+    {
+        "first_opening_hour": None, 
+        "first_closing_hour": None,
+        "second_opening_hour": "23",
+        "second_closing_hour": "19",
+    },
+    {
+        "first_opening_hour": "15", 
+        "first_closing_hour": "12",
+        "second_opening_hour": None,
+        "second_closing_hour": None,
+    },
+    {
+        "first_opening_hour": "11", 
+        "first_closing_hour": None,
+        "second_opening_hour": "16",
+        "second_closing_hour": None,
+    },
+    {
+        "first_opening_hour": None, 
+        "first_closing_hour": None,
+        "second_opening_hour": "16",
+        "second_closing_hour": None,
+    }
+]
 
 class BookingsTests(unittest.TestCase): 
     """ Tests endpoints with mocks """
@@ -72,17 +168,100 @@ class BookingsTests(unittest.TestCase):
     def test_post_restaurants(self):
         client = self.app.test_client()
 
+        response = client.post('/restaurants',json=restaurants_toaddedit[0])
+        json = response.get_json()
+        ret = same_restaurant(json, restaurants_toaddedit[0])
+        self.assertIsNone(ret, msg=str(json)+"/n/n"+str(restaurants_toaddedit[0]))
+        self.assertEqual(response.status_code, 201, msg=json)
+
+        response = client.post('/restaurants',json=restaurants_toaddedit[1])
+        json = response.get_json()
+        ret = same_restaurant(json, restaurants_toaddedit[1])
+        self.assertIsNone(ret, msg=str(json)+"/n/n"+str(restaurants_toaddedit[1]))
+        self.assertEqual(response.status_code, 201, msg=json)
+
+    
+    def test_post_restaurants_failures(self):
+        client = self.app.test_client()
+        
+        for k,v in restaurants_toaddedit[0].items():
+            dup = restaurants_toaddedit[0].copy()
+            dup[k] = None
+            response = client.post(restaurants[0]["url"],json=dup)
+            json = response.get_json()
+            self.assertEqual(response.status_code, 400, msg=json)
+
+        for pos in opening_possibilities:
+            dup = restaurants_toaddedit[0].copy()
+            for k,v in pos.items():
+                dup[k] = v
+            response = client.post('/restaurants',json=dup)
+            json = response.get_json()
+            self.assertEqual(response.status_code, 400, msg=json)
+            
+
     def test_get_restaurant(self):
         client = self.app.test_client()
+
+        for r in restaurants:
+            response = client.get(r['url'])
+            json = response.get_json()
+            self.assertEqual(response.status_code, 200, msg=json)
+            ret = same_restaurant(json, r)
+            self.assertIsNone(ret, msg=str(json)+"/n/n"+str(r))
 
     def test_put_restaurant(self):
         client = self.app.test_client()
 
+        response = client.put(json=restaurants_toaddedit[1]["url"])
+        json = response.get_json()
+        self.assertEqual(response.status_code, 200, msg=json)
+        ret = same_restaurant(json, restaurants_toaddedit[1])
+        self.assertIsNone(ret, msg=str(json)+"/n/n"+str(restaurants_toaddedit[1]))
+
+    def test_put_restaurants_failures(self):
+        client = self.app.test_client()
+        
+        for k,v in restaurants_toaddedit[0].items():
+            dup = restaurants_toaddedit[0].copy()
+            dup[k] = None
+            response = client.put(restaurants[0]["url"],json=dup)
+            json = response.get_json()
+            self.assertEqual(response.status_code, 400, msg=json)
+
+        for pos in opening_possibilities:
+            dup = restaurants_toaddedit[0].copy()
+            for k,v in pos.items():
+                dup[k] = v
+            response = client.put(restaurants[0]["url"],json=dup)
+            json = response.get_json()
+            self.assertEqual(response.status_code, 400, msg=json)
+
     def test_delete_restaurant(self):
         client = self.app.test_client()
 
+        response = client.post('/restaurants',json=restaurants_toaddedit[0])
+        json = response.get_json()
+        ret = same_restaurant(json, restaurants_toaddedit[0])
+        self.assertIsNone(ret, msg=str(json)+"/n/n"+str(restaurants_toaddedit[0]))
+        self.assertEqual(response.status_code, 201, msg=json)
+
+        response = client.delete(restaurants_toaddedit[0]["url"])
+        json = response.get_json()
+        self.assertEqual(response.status_code, 204, msg=json)
+
+        response = client.get(restaurants_toaddedit[0]["url"])
+        json = response.get_json()
+        self.assertEqual(response.status_code, 404, msg=json)
+
     def test_get_restaurant_rate(self):
         client = self.app.test_client()
+        for r in restaurants:
+            response = client.get("/restaurants/%d/rate" % r["id"])
+            json = response.get_json()
+            self.assertEqual(response.status_code, 200, msg=json)
+            self.assertEqual(json["value"], r["rating_val"], msg =json)
+            self.assertEqual(json["ratings"], r["rating_num"], msg =json)
 
     def test_post_restaurant_rate(self):
         client = self.app.test_client()

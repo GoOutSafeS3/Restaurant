@@ -146,17 +146,23 @@ def get_tables(id):
         else:
             return get_from(current_app.config["REST_SERVICE_URL"]+"/restaurants/"+str(id)+"/tables")
 
+def same_restaurant(rest,rest2):
+    for k in rest.keys():
+        if k == "closed_days":
+            if rest[k] != ''.join([str(i) for i in rest2[k]]):
+                return str(rest[k])+"\n"+k+"\n"+str(rest2[k])
+        else:
+            if rest[k] != rest2[k]:
+                return str(rest[k])+"\n"+k+"\n"+str(rest2[k])
+    return None
+
 def same_restaurants(rests,rests2):
     if len(rests) != len(rests2):
         return "Different lenght"
     for rest,rest2 in zip(rests, rests2):
-        for k in rest.keys():
-            if k == "closed_days":
-                if rest[k] != ''.join([str(i) for i in rest2[k]]):
-                    return str(rest[k])+"\n"+k+"\n"+str(rest2[k])
-            else:
-                if rest[k] != rest2[k]:
-                    return str(rest[k])+"\n"+k+"\n"+str(rest2[k])
+        ret = same_restaurant(rest,rest2)
+        if ret is not None:
+            return ret
     return None
 
 def search_mock_restaurants(restaurants,keys,vals):

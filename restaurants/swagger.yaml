@@ -541,6 +541,7 @@ components:
         user_id:
           type: integer
           description: User unique identifier
+          writeOnly: true
         value:
           type: number
           description: Mean rating
@@ -549,6 +550,7 @@ components:
         ratings:
           type: integer
           description: Number of ratings
+          readOnly: true
           minimum: 0
     Table:
       required:

@@ -25,35 +25,6 @@ class Restaurant(db.Model):
     menu = db.Column(db.Text(1000))
     tables = relationship('Table')
 
-    def is_open(self, booking_datetime):
-        """
-        Given a datetime, check that the restaurant is open on that date
-        """
-        if str(booking_datetime.weekday()+1) in self.closed_days:
-            return False
-
-        now = datetime.datetime.now()
-
-        booking = now.replace( hour=booking_datetime.hour, minute=booking_datetime.minute, second=0, microsecond=0 )
-
-        if self.first_opening_hour is not None and self.first_opening_hour is not None:
-
-            first_opening = now.replace( hour=self.first_opening_hour, minute=0, second=0, microsecond=0 )
-            first_closing = now.replace( hour=self.first_closing_hour, minute=0, second=0, microsecond=0 )
-
-            if first_opening <= booking <= first_closing:
-                return True
-
-        if self.second_opening_hour is not None and self.second_opening_hour is not None:
-
-            second_opening = now.replace( hour=self.second_opening_hour, minute=0, second=0, microsecond=0 )
-            second_closing = now.replace( hour=self.second_closing_hour, minute=0, second=0, microsecond=0 )
-
-            if second_opening <= booking <= second_closing:
-                return True
-
-        return False
-
     def get_id(self):
         return self.id
 

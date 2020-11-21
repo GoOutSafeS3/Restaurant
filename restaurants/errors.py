@@ -28,10 +28,7 @@ class Error:
 class Error400(Error):
     def __init__(self, detail):
         """ Bad Request """
-        self.type = "about:blank"
-        self.title = "Bad Request"
-        self.status = 400
-        self.detail = detail
+        super().__init__("about:blank", "Bad Request", 400, detail)
 
 class Error404(Error):
     def __init__(self, detail):

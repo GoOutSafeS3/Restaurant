@@ -85,6 +85,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        500:
+          description: Error during the process (try again)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /restaurants/{restaurant_id}:
     get:
       tags:
@@ -147,6 +153,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        409:
+          description: The restaurant has pending reservations tha conflict with the new openings, those must be deleted first, try using the force parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Error during the process (try again)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       tags:
       - Restaurants
@@ -176,6 +194,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         409:
           description: The restaurant has pending reservations, those must be deleted first, try using the force parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Error during the process (try again)
           content:
             application/json:
               schema:
@@ -234,6 +258,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         404:
           description: Restaurant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Error during the process (try again)
           content:
             application/json:
               schema:
@@ -307,6 +337,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         404:
           description: Restaurant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Error during the process (try again)
           content:
             application/json:
               schema:
@@ -385,6 +421,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        409:
+          description: The table has pending reservations tha conflict with the new capacity, those must be deleted first, try using the force parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Error during the process (try again)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       tags:
       - Restaurants
@@ -420,6 +468,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         409:
           description: The table has pending reservations, those must be deleted first, try using the force parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Error during the process (try again)
           content:
             application/json:
               schema:

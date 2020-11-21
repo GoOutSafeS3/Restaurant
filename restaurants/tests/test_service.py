@@ -1,5 +1,5 @@
 from datetime import date
-from restaurants.background import check_ratings
+from restaurants.background import check_ratings, recompute_ratings
 import unittest 
 import datetime
 import dateutil
@@ -48,8 +48,8 @@ restaurants_toaddedit = [
         "phone": "050123456",
         "first_opening_hour": 2,
         "first_closing_hour": 5,
-        "second_opening_hour": None,
-        "second_closing_hour": None,
+        "second_opening_hour": 15,
+        "second_closing_hour": 20,
         "occupation_time": 1,
         "cuisine_type": "cuisine_type",
         "menu": "menu",
@@ -170,7 +170,7 @@ ratings_toadd = [
 tables_toaddedit = [
     {"url": "/restaurants/5/tables/7", "id":7, "restaurant_id": 5, "capacity":2},
     {"url": "/restaurants/5/tables/7", "id":7, "restaurant_id": 5, "capacity":5},
-    {"url": "/restaurants/1/tables/8", "id":8, "restaurant_id": 5, "capacity":5},
+    {"url": "/restaurants/5/tables/8", "id":8, "restaurant_id": 5, "capacity":5},
 ]
 
 class RestaurantsTests(unittest.TestCase): 
@@ -250,8 +250,6 @@ class RestaurantsTests(unittest.TestCase):
 
         for k,v in dup_.items():
             dup = dup_.copy()
-            if v == None:
-                continue
             dup[k] = None
             response = client.post("/restaurants",json=dup)
             json = response.get_json()
@@ -294,8 +292,6 @@ class RestaurantsTests(unittest.TestCase):
         for k,v in dup_.items():
             dup = dup_.copy()
             dup[k] = None
-            if v == None:
-                continue
             response = client.put(restaurants[0]["url"],json=dup)
             json = response.get_json()
             self.assertEqual(response.status_code, 400, msg=json)
@@ -362,6 +358,20 @@ class RestaurantsTests(unittest.TestCase):
         self.assertEqual(json["rating"], ratings_toadd[0]["rating"], msg =json)
         self.assertEqual(json["ratings"], 1, msg =json)
 
+    def test_post_restaurant_rate2(self):
+        client = self.app.test_client()
+        r = restaurants[0]
+        response = client.post("%s/rate" % r["url"], json=ratings_toadd[0])
+        self.assertEqual(response.status_code, 202, msg=response.get_data())
+
+        recompute_ratings.apply()
+
+        response = client.get("%s/rate" % r["url"])
+        json = response.get_json()
+        self.assertEqual(response.status_code, 200, msg=json)
+        self.assertEqual(json["rating"], ratings_toadd[0]["rating"], msg =json)
+        self.assertEqual(json["ratings"], 1, msg =json)
+
     def test_post_restaurant_rate_failures(self):
         client = self.app.test_client()
         r = restaurants[1]
@@ -408,7 +418,7 @@ class RestaurantsTests(unittest.TestCase):
         t = tables_toaddedit[0]
         dup = clone_for_post(t,table_post_keys)
 
-        response = client.post(r["url"]+"/tables")
+        response = client.post(r["url"]+"/tables", json=dup)
         json = response.get_json()
         self.assertEqual(response.status_code, 201, msg=json)
         self.assertEqual(t, json)
@@ -420,8 +430,6 @@ class RestaurantsTests(unittest.TestCase):
 
         for k,v in dup_.items():
             dup = dup_.copy()
-            if v == None:
-                continue
             dup[k] = None
             dup = clone_for_post(dup, table_post_keys)
             response = client.post("/restaurants/%d/tables" % tables_toaddedit[0]["restaurant_id"],json=dup)
@@ -429,7 +437,7 @@ class RestaurantsTests(unittest.TestCase):
             self.assertEqual(response.status_code, 400, msg=json)
 
         for pos in table_possibilities:
-            dup_ = clone_for_post(tables_toaddedit[0], table_post_keys)
+            dup_ = tables_toaddedit[0].copy()
             for k,v in pos.items():
                 dup_[k] = v
             dup = clone_for_post(dup_, table_post_keys)
@@ -467,8 +475,6 @@ class RestaurantsTests(unittest.TestCase):
 
         for k,v in dup_.items():
             dup = dup_.copy()
-            if v == None:
-                continue
             dup[k] = None
             dup = clone_for_post(dup, table_post_keys)
             response = client.put(tables[0]["url"],json=dup)
@@ -476,7 +482,7 @@ class RestaurantsTests(unittest.TestCase):
             self.assertEqual(response.status_code, 400, msg=json)
 
         for pos in table_possibilities:
-            dup_ = clone_for_post(tables[0], table_post_keys)
+            dup_ = tables[0].copy()
             for k,v in pos.items():
                 dup_[k] = v
             dup = clone_for_post(dup_, table_post_keys)

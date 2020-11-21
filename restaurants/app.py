@@ -15,7 +15,7 @@ from connexion import NoContent, request
 
 from restaurants.orm import db, Restaurant,Rating,Table
 
-from restaurants.utils import add_rating, del_restaurant, get_future_bookings, put_fake_data, valid_openings, add_restaurant, edit_restaurant, valid_rating
+from restaurants.utils import add_rating, add_table, del_restaurant, del_table, edit_table, get_future_bookings, put_fake_data, valid_openings, add_restaurant, edit_restaurant, valid_rating
 
 from restaurants.errors import Error, Error400, Error404, Error409, Error500
 
@@ -123,8 +123,9 @@ def post_restaurants():
         - closed_days
 
     Status Codes:
-        201 - The booking has been created
+        201 - The restaurant has been created
         400 - Data error
+        500 - DB error
     """
 
     req = request.json
@@ -147,7 +148,7 @@ def get_restaurant(restaurant_id):
 
         Status Codes:
             200 - OK
-            404 - Booking not found
+            404 - Restaurant not found
     """
     q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
     if q is None:
@@ -155,18 +156,31 @@ def get_restaurant(restaurant_id):
     return q.dump(), 200
 
 def put_restaurant(restaurant_id):
-    """ Return a specific booking (request by id)
+    """ Return a specific restaurant (request by id)
 
     GET /restaurants/{restaurant_id}
 
         Status Codes:
             200 - OK
-            404 - Booking not found
+            404 - Restaurant not found
+            409 - The restaurant has pending reservations tha conflict with the new times, those must be deleted first, try using the force parameter
+            500 - DB error
     """
     req = request.json
     err = valid_openings(req["first_opening_hour"],req["first_closing_hour"],req["second_opening_hour"],req["second_closing_hour"])
     if err is not None:
         return err
+
+    array,code = get_future_bookings(restaurant_id)
+    if code == 200:
+        for booking in array:
+            hour = dateutil.parser.parse(booking["booking_datetime"]).hour()
+            if not (req["first_opening_hour"] <= hour <= req["first_closing_hour"]
+                    or 
+                    req["second_opening_hour"] <= hour <= req["second_closing_hour"]):
+                return Error409("The restaurant has pending reservations tha conflict with the new times, those must be deleted first, try using the force parameter").get()
+    else:
+        return Error500().get()
 
     rest_id = edit_restaurant(restaurant_id, req)
 
@@ -189,7 +203,7 @@ def delete_restaurant(restaurant_id):
         204 - Deleted
         404 - Restaurant not found
         409 - The restaurant has pending reservations, those must be deleted first, try using the force parameter
-        500 - Error with the database
+        500 - Error with the database or the other bookings service
     """
     p = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
     if p is None:
@@ -222,9 +236,9 @@ def get_restaurant_rating(restaurant_id):
     return q.dump_rating(), 200
 
 def post_restaurant_rating(restaurant_id):
-    """ Add a new restaurant.
+    """ Add a new rating for the restaurant.
 
-    POST /restaurants
+    POST /restaurants/{restaurant_id}/rate
     
     Returns the restaurant if it can be made, otherwise returns an error message.
 
@@ -233,9 +247,10 @@ def post_restaurant_rating(restaurant_id):
         - rating
 
     Status Codes:
-        202 - The booking has been created
+        202 - The ratingg for the restaurant has been created
         400 - Bad request or Restaurant already rated by the user
         404 - Restaurant not found
+        500 - DB error
     """
     req = request.json
     err = valid_rating(req, restaurant_id)
@@ -273,65 +288,122 @@ def get_restaurant_tables(restaurant_id, capacity=None):
 
     q = q.all()
 
-    if q is None or len(q)==0:
+    if len(q)==0:
         return NoContent, 204
     return [q.dump() for q in q], 200
 
 def post_restaurant_table(restaurant_id):
-    """ Return a specific restaurant (request by id)
+    """ Add a new table for the restaurant.
 
-    GET /restaurants/{restaurant_id}/tables
+    POST /restaurants/{restaurant_id}/tables
+    
+    Returns the restaurant if it can be made, otherwise returns an error message.
 
-        Status Codes:
-            200 - OK
-            404 - Restaurant not found
+    Requires a json object with:
+        - capacity
+
+    Status Codes:
+        201 - The restaurant has been created
+        400 - Data error
+        404 - Restaurant not found
+        500 - DB error
     """
-    q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
-    if q is None:
+
+    req = request.json
+
+    r = db.session.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
+    if r is None:
         return Error404("Restaurant not found").get()
-    return q.dump(), 200
+
+    table_id = add_table(req, restaurant_id)
+
+    table, status_code = get_restaurant_table(restaurant_id, table_id)
+    if status_code == 200:
+        return table, 201
+    else: # unexpected error
+        return Error500().get()
 
 def get_restaurant_table(restaurant_id, table_id):
     """ Return a specific restaurant (request by id)
 
-    GET /restaurants/{restaurant_id}/tables
+    GET /restaurants/{restaurant_id}/tables/{table_id}
 
         Status Codes:
             200 - OK
-            404 - Restaurant not found
+            400 - Data error
+            404 - Restaurant or Table not found
+            500 - DB error
     """
-    q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+    q = db.session.query(Table).filter(Table.id == table_id and Table.restaurant_id == restaurant_id).first()
     if q is None:
-        return Error404("Restaurant not found").get()
+        return Error404("Restaurant or Table not found").get()
     return q.dump(), 200
 
 def put_restaurant_table(restaurant_id, table_id):
     """ Return a specific restaurant (request by id)
 
-    GET /restaurants/{restaurant_id}/tables
+    GET /restaurants/{restaurant_id}/tables/{table_id}
 
         Status Codes:
             200 - OK
             404 - Restaurant not found
+            409 - The table has pending reservations tha conflict with the new capacity, those must be deleted first, try using the force parameter
+            500 - DB error
     """
-    q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+    req = request.json
+
+    q = db.session.query(Table).filter(Table.id == table_id and Table.restaurant_id == restaurant_id).first()
     if q is None:
-        return Error404("Restaurant not found").get()
-    return q.dump(), 200
+        return Error404("Restaurant or Table not found").get()
+
+    array,code = get_future_bookings(restaurant_id, table_id)
+    if code == 200:
+        for booking in array:
+            if booking["number_of_people"] > req["capacity"]:
+                return Error409("The table has pending reservations tha conflict with the new capacity, those must be deleted first, try using the force parameter").get()
+    else:
+        return Error500().get()
+
+    table_id2 = edit_table(table_id, req)
+    if table_id != table_id2:
+        return Error500().get()
+
+    restaurant, status_code = get_restaurant_table(restaurant_id, table_id)
+    if status_code == 200:
+        return restaurant, 200
+    else: # unexpected error
+        return Error500().get()
 
 def delete_restaurant_table(restaurant_id, table_id):
-    """ Return a specific restaurant (request by id)
+    """ Delete the restaurant table specified by the id.
 
-    GET /restaurants/{restaurant_id}/tables
+    DELETE /restaurants/{restaurant_id}/tables/{table_id}
+    
+    Deletion is only possible if the restaurant has not yet passed.
 
-        Status Codes:
-            200 - OK
-            404 - Restaurant not found
+    Otherwise it remains stored (necessary for contact tracing)
+
+    Status Codes:
+        204 - Deleted
+        404 - Restaurant not found
+        409 - The table has pending reservations, those must be deleted first, try using the force parameter
+        500 - Error with the database or the other bookings service
     """
-    q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+    q = db.session.query(Table).filter(Table.id == table_id and Table.restaurant_id == restaurant_id).first()
     if q is None:
-        return Error404("Restaurant not found").get()
-    return q.dump(), 200
+        return Error404("Restaurant or Table not found").get()
+
+    array,code = get_future_bookings(restaurant_id, table_id)
+    if code != 200:
+        return Error500().get() # Cannot connect to the bookings service
+
+    if len(array) != 0:
+        return Error409("The table has pending reservations, those must be deleted first, try using the force parameter").get()
+
+    if not del_table(table_id):
+        return Error500().get() # DB error
+
+    return NoContent, 204
 
 
 def get_config(configuration=None):

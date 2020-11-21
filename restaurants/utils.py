@@ -112,34 +112,6 @@ tables = [
     {"url": "/restaurants/3/tables/6", "id":6, "restaurant_id": 3, "capacity":2},
 ]
 
-def put_to(url, data):
-    """ Makes a post request with a timeout.
-
-    Returns the json and the status code
-
-    The timeout is set in config.ini or the default one is used (0.001)
-    """
-    try:
-        with current_app.app_context():
-            r = requests.put(url, data,timeout=current_app.config["TIMEOUT"])
-            return r.json(),r.status_code
-    except:
-        return None
-
-def post_to(url, data):
-    """ Makes a post request with a timeout.
-
-    Returns the json and the status code
-
-    The timeout is set in config.ini or the default one is used (0.001)
-    """
-    try:
-        with current_app.app_context():
-            r = requests.post(url, data, timeout=current_app.config["TIMEOUT"])
-            return r.json(),r.status_code
-    except:
-        return None
-
 def get_from(url):
     """ Makes a get request with a timeout.
 
@@ -154,20 +126,25 @@ def get_from(url):
     except:
         return None,-1
 
-def get_future_bookings(restaurant_id):
+def get_future_bookings(restaurant_id, table_id=None):
     """ Get an array of bookings and the status code for the future booking of the specified restaurant_id
     
     Use the default ones if mocks are requested
     """
+    if table_id is not None:
+        query = "/bookings?rest=%d&table=%d&begin=%s" % (restaurant_id,table_id,str(datetime.datetime.now()))
+    else:
+        query = "/bookings?rest=%d&begin=%s" % (restaurant_id,str(datetime.datetime.now()))
+
     with current_app.app_context():
         if current_app.config["USE_MOCKS"]:
             ret = []
             for b in bookings:
-                if b["rest_id"] == restaurant_id and datetime.datetime.now() < b["booking_datetime"]:
+                if b["rest_id"] == restaurant_id and datetime.datetime.now() < b["booking_datetime"] and (table_id is None or table_id==b["table_id"]):
                     ret.append(b)
             return ret,200
         else:
-            return get_from(current_app.config["BOOK_SERVICE_URL"]+"/bookings?rest=%d&begin=%s"%(id,str(datetime.datetime.now())))
+            return get_from(current_app.config["BOOK_SERVICE_URL"]+query)
 
 def same_restaurant(rest,rest2):
     for k in rest.keys():
@@ -278,6 +255,17 @@ def del_restaurant(restaurant_id):
         db.session.rollback()
     return False
 
+def del_table(table_id):
+    try:
+        restaurant = db.session.query(Table).filter_by(id = table_id).first()
+        
+        db.session.delete(restaurant)
+        db.session.commit()
+        return True
+    except:
+        db.session.rollback()
+    return False
+
 def edit_restaurant(restaurant_id, obj):
     try:
         restaurant = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
@@ -325,6 +313,17 @@ def add_restaurant(obj):
     except:
         import traceback
         traceback.print_exc()
+        db.session.rollback()
+        return None
+
+def edit_table(table_id, obj):
+    try:
+        table = db.session.query(Table).filter_by(id = table_id).first()
+        table.capacity = obj["capacity"]
+        db.session.add(table)
+        db.session.commit()
+        return table.id
+    except:
         db.session.rollback()
         return None
 

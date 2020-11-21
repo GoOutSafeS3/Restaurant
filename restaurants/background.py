@@ -59,14 +59,6 @@ def check_ratings():
             logger.info("task-check_ratings-commit")
             db.session.commit()
 
-@celery.task
-def log(message):
-    logger.debug(message)
-    logger.info(message)
-    logger.warning(message)
-    logger.error(message)
-    logger.critical(message)
-
 def init_celery(app, worker=False):
     #print(app.config,flush=True)
     # load celery config

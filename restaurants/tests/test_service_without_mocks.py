@@ -1,3 +1,4 @@
+from restaurants.tests.test_service import clone_for_post, table_post_keys
 import unittest 
 import datetime
 
@@ -5,6 +6,7 @@ import sys
 sys.path.append("..")
 
 from restaurants.app import create_app 
+from restaurants.utils import tables
 
 class RestaurantsFailureTests(unittest.TestCase): 
     """ Tests endpoints without mocks """
@@ -28,17 +30,13 @@ class RestaurantsFailureTests(unittest.TestCase):
 ############### 
 
     def test_delete_table(self):
-        pass
         # insert here check of the other endpoints like bookings
-        # client = self.app.test_client() 
-        # restaurant = {
-        #     "user_id":1,
-        #     "restaurant_id":3,
-        #     "number_of_people":3, 
-        #     "booking_datetime": (datetime.datetime.now() + datetime.timedelta(days=1)).isoformat()
-        #     }
-        # response = client.post('/restaurants',json=restaurant) 
-        # json = response.get_json() 
-        # self.assertEqual(response.status_code, 500, msg=json) 
+        client = self.app.test_client() 
+
+        t = tables[1]
+        dup = clone_for_post(t,table_post_keys)
+        response = client.put(t["url"],json=dup)
+        self.assertEqual(response.status_code, 500, msg=response.get_data()) 
+        
 
    

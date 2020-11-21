@@ -212,11 +212,12 @@ def search_mock_restaurants(restaurants,keys,vals):
             res.append(r)
     return res
 
-def get_mock_tables(tables, restaurant_id):
+def get_mock_tables(tables, restaurant_id, capacity=0):
     ret = []
     for t in tables:
         if t["restaurant_id"] == restaurant_id:
-            ret.append(t)
+            if t["capacity"] >= capacity:
+                ret.append(t)
     return ret
 
 def validate_hours(first_opening, first_closing, second_opening, second_closing):

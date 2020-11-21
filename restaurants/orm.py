@@ -79,7 +79,7 @@ class Table(db.Model):
     def dump(self):
         """ Return a db record as a dict """
         d = dict([(k,v) for k,v in self.__dict__.items() if k[0] != '_'])
-        d["url"] = "/restaurants/%d/tables/%d" % (d["rest_id"],d["id"])
+        d["url"] = "/restaurants/%d/tables/%d" % (d["restaurant_id"],d["id"])
         return d
 
 class Rating(db.Model):

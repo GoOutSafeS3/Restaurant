@@ -389,6 +389,16 @@ class RestaurantsTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 200, msg=json)
                 self.assertEqual(ret, json)
 
+        for r in restaurants:
+            response = client.get(r["url"]+"/tables?capacity=3")
+            ret = get_mock_tables(tables, r["id"], 3)
+            if len(ret) == 0:
+                self.assertEqual(response.status_code, 204, msg=response.get_data())
+            else:
+                json = response.get_json()
+                self.assertEqual(response.status_code, 200, msg=json)
+                self.assertEqual(ret, json, msg="\n"+str(ret)+"\n\n"+str(json))
+
     def test_post_tables(self):
         client = self.app.test_client()
         # assuming test_post_restaurant executed before

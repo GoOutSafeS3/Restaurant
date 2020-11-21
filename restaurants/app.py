@@ -251,19 +251,31 @@ def post_restaurant_rating(restaurant_id):
     else: # unexpected error
         return Error500().get()
 
-def get_restaurant_tables(restaurant_id):
-    """ Return a specific restaurant (request by id)
+def get_restaurant_tables(restaurant_id, capacity=None):
+    """ Return the tables of a restaurant (request by id)
 
-    GET /restaurants/{restaurant_id}/tables
+    GET /restaurants/{restaurant_id}/tables?capacity=CAPACITY
+    
+    capacity is optional and specify the minimum capacity the returned tables should have
 
         Status Codes:
             200 - OK
+            204 - No tables with such capacity or no tables
             404 - Restaurant not found
     """
-    q = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+    q = db.session.query(Restaurant).filter(Restaurant.id == restaurant_id)
     if q is None:
         return Error404("Restaurant not found").get()
-    return q.dump(), 200
+
+    q = db.session.query(Table).filter(Table.restaurant_id == restaurant_id)
+    if capacity is not None:
+        q = q.filter(Table.capacity >= capacity)
+
+    q = q.all()
+
+    if q is None or len(q)==0:
+        return NoContent, 204
+    return [q.dump() for q in q], 200
 
 def post_restaurant_table(restaurant_id):
     """ Return a specific restaurant (request by id)

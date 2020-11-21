@@ -9,7 +9,7 @@ services:
     volumes:
       - .:/coverage
       - ./restaurants/db:/usr/src/app/restaurants/db
-    command: /code/test.sh
+    command: /usr/src/app/run.sh unittests
     environment:
       - "BROKER=redis://local-redis:6379"
       - "BACKEND=redis://local-redis:6379"

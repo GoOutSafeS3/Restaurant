@@ -166,6 +166,10 @@ def put_restaurant(restaurant_id):
             409 - The restaurant has pending reservations tha conflict with the new times, those must be deleted first
             500 - DB error
     """
+    p = db.session.query(Restaurant).filter_by(id = restaurant_id).first()
+    if p is None:
+        return Error404("Restaurant not found").get()
+        
     req = request.json
     err = valid_openings(req["first_opening_hour"],req["first_closing_hour"],req["second_opening_hour"],req["second_closing_hour"])
     if err is not None:

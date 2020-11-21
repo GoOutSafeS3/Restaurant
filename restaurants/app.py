@@ -41,8 +41,8 @@ DEFAULT_CONFIGURATION = {
     "SQLALCHEMY_TRACK_MODIFICATIONS": False,
 
     "USE_MOCKS": False, # use mocks for external calls
-    "TIMEOUT": 0.001, # timeout for external calls
-    "BOOK_SERVICE_URL": "127.0.0.1:8079", # bookings microservice url
+    "TIMEOUT": 2, # timeout for external calls
+    "BOOK_SERVICE_URL": "http://bookings:8080", # bookings microservice url
 
     "COMMIT_RATINGS_AFTER": 600, # celery config for updating the ratings
     "result_backend" : os.getenv("BACKEND", "redis://localhost:6379"),

@@ -124,6 +124,7 @@ def get_from(url):
             r = requests.get(url, timeout=current_app.config["TIMEOUT"])
             return r.json(),r.status_code
     except:
+        traceback.print_exc()
         return None,-1
 
 def get_future_bookings(restaurant_id, table_id=None):
@@ -132,9 +133,9 @@ def get_future_bookings(restaurant_id, table_id=None):
     Use the default ones if mocks are requested
     """
     if table_id is not None:
-        query = "/bookings?rest=%d&table=%d&begin=%s" % (restaurant_id,table_id,str(datetime.datetime.now()))
+        query = "/bookings?rest=%d&table=%d&begin=%s" % (restaurant_id,table_id,datetime.datetime.now().isoformat())
     else:
-        query = "/bookings?rest=%d&begin=%s" % (restaurant_id,str(datetime.datetime.now()))
+        query = "/bookings?rest=%d&begin=%s" % (restaurant_id,datetime.datetime.now().isoformat())
 
     with current_app.app_context():
         if current_app.config["USE_MOCKS"]:
@@ -145,7 +146,7 @@ def get_future_bookings(restaurant_id, table_id=None):
             return ret,200
         else:
             return get_from(current_app.config["BOOK_SERVICE_URL"]+query)
-
+            
 def same_restaurant(rest,rest2):
     for k in rest.keys():
         if k == "closed_days":

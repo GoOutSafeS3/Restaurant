@@ -133,3 +133,4 @@ dmypy.json
 report.html
 assets/
 **/*.db
+.vscode

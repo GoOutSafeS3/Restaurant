@@ -23,8 +23,8 @@ services:
     environment:
       - "BROKER=redis://redis:6379"
       - "BACKEND=redis://redis:6379"
-      - "CONFIG=PRODUCTION"
-    command: celery -A monolith.worker:celery worker -l info -B -s /tmp/celerybeat-schedule
+      - "CONFIG=DOCKER"
+    command: celery -A restaurants.worker:celery worker -l info -B -s /tmp/celerybeat-schedule
     depends_on:
       - redis
     volumes:

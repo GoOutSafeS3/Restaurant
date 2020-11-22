@@ -31,6 +31,7 @@ class Restaurant(db.Model):
     def dump(self):
         """ Return a db record as a dict """
         d = dict([(k,v) for k,v in self.__dict__.items() if k[0] != '_'])
+        d["closed_days"] = [int(day) for day in d["closed_days"]]
         d["url"] = "/restaurants/"+str(d["id"])
         return d
 

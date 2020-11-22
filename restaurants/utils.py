@@ -149,12 +149,8 @@ def get_future_bookings(restaurant_id, table_id=None):
             
 def same_restaurant(rest,rest2):
     for k in rest.keys():
-        if k == "closed_days":
-            if rest[k] != ''.join([str(i) for i in rest2[k]]):
-                return str(rest[k])+"\n"+k+"\n"+str(rest2[k])
-        else:
-            if rest[k] != rest2[k]:
-                return str(rest[k])+"\n"+k+"\n"+str(rest2[k])
+        if rest[k] != rest2[k]:
+            return str(rest[k])+"\n"+k+"\n"+str(rest2[k])
     return None
 
 def same_restaurants(rests,rests2):

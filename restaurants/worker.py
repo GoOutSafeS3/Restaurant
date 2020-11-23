@@ -32,7 +32,7 @@ celery = create_celery(app)
 @celery.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
     
-    sender.add_periodic_task(float(app.config["COMMIT_RATINGS_AFTER"]), check_ratings.s(), name=f"Mark likes and add to respective restaurants | a controll each {app.config['UNMARK_AFTER']} seconds")
+    sender.add_periodic_task(float(app.config["COMMIT_RATINGS_AFTER"]), check_ratings.s(), name=f"Mark likes and add to respective restaurants | a controll each {app.config['COMMIT_RATINGS_AFTER']} seconds")
 
     # Executes every monday morning at 4:30 a.m. see https://docs.celeryproject.org/en/stable/userguide/periodic-tasks.html#crontab-schedules
     sender.add_periodic_task(

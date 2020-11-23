@@ -524,6 +524,7 @@ def create_worker_app():
     for k,v in conf.items():
         application.config[k] = v # insert the requested configuration in the app configuration
 
+    application.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + application.config["SQLALCHEMY_DATABASE_URI"]
     
     db.init_app(application)
     init_celery(application)

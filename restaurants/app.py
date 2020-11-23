@@ -526,6 +526,7 @@ def create_worker_app():
 
     
     db.init_app(application)
+    init_celery(application)
 
     return application
 

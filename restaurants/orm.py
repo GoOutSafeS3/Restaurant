@@ -57,7 +57,7 @@ class Table(db.Model):
 class Rating(db.Model):
     __tablename__ = 'Rating'
     __table_args__ = {'sqlite_autoincrement':True}
-    rater_id = db.Column(db.Integer, primary_key=True, unique=True)
+    rater_id = db.Column(db.Integer, primary_key=True)
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'), primary_key=True)
     restaurant = relationship('Restaurant', foreign_keys='Rating.restaurant_id')
     rating = db.Column(db.Integer)

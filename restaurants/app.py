@@ -44,7 +44,7 @@ DEFAULT_CONFIGURATION = {
     "TIMEOUT": 2, # timeout for external calls
     "BOOK_SERVICE_URL": "http://bookings:8080", # bookings microservice url
 
-    "COMMIT_RATINGS_AFTER": 600, # celery config for updating the ratings
+    "COMMIT_RATINGS_AFTER": 10, # celery config for updating the ratings
     "result_backend" : os.getenv("BACKEND", "redis://localhost:6379"),
     "broker_url" : os.getenv("BROKER", "redis://localhost:6379"),
 }

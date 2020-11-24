@@ -84,8 +84,8 @@ restaurants = [
         "second_opening_hour": 20,
         "second_closing_hour": 23,
         "occupation_time": 2,
-        "cuisine_type": "cuisine_type",
-        "menu": "menu",
+        "cuisine_type": "True Italian Restaurant",
+        "menu": "Pizza, Pasta Bolognese, Breadsticks",
         "closed_days": [1, 7]
     }
 ]

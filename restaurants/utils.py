@@ -71,7 +71,7 @@ restaurants = [
         "closed_days": []
     },
     {
-        "url": "/restaurants/4", # TWO OPENINGS (CLOSED ON SUNDAY AND MONDAYS)
+        "url": "/restaurants/4", # TWO OPENINGS (ALWAYS OPEN)
         "id": 4,
         "name": "Rest 4",
         "rating_val": 3.4,
@@ -86,7 +86,7 @@ restaurants = [
         "occupation_time": 2,
         "cuisine_type": "True Italian Restaurant",
         "menu": "Pizza, Pasta Bolognese, Breadsticks",
-        "closed_days": [1, 7]
+        "closed_days": []
     }
 ]
 

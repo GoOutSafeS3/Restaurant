@@ -15,6 +15,9 @@ RUN ["./run.sh", "setup"]
 
 COPY . ./
 
+RUN dos2unix ./run.sh
+RUN chmod +x ./run.sh
+
 ENV CONFIG=DOCKER
 
 CMD ./run.sh ${CONFIG}
